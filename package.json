@@ -1,0 +1,24 @@
+{
+  "name": "atollhub-multishop-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-Shop E-Commerce, POS, Expiry (FEFO), Multi-Currency & Customer Credit Book SaaS Platform",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:seed": "cd backend && npm run db:seed",
+    "setup:admin": "cd backend && npm run setup:admin",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "test": "python3 tests/run_verification_suite.py"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
