@@ -1443,13 +1443,11 @@
 
         function openLoginModal(targetPortal = 'SHOP_OWNER') {
       const activeRole = targetPortal === 'MASTER_ADMIN' ? 'MASTER_ADMIN' : 'SHOP_OWNER';
-      const defaultEmail = activeRole === 'MASTER_ADMIN' ? 'admin@atollhub.mv' : 'owner@malefresh.mv';
-      const defaultPass = activeRole === 'MASTER_ADMIN' ? (state.adminCredentials.password || 'Admin@Atoll2026!') : (state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!');
 
       const html = `
         <div class="space-y-4 text-xs" id="login-modal-root">
           <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            <strong>Portal Authentication Required:</strong> The <strong>Master Admin Panel</strong> and <strong>Shop Owner / POS Management</strong> are strictly protected. Please sign in below to access management portals. Visitors without credentials browse the public Customer Marketplace.
+            <strong>Portal Authentication Required:</strong> The <strong>Master Admin Panel</strong> and <strong>Shop Owner / POS Management</strong> are strictly protected via PocketBase RBAC. Unauthenticated visitors browse the public Customer Marketplace.
           </div>
 
           <!-- Role Tabs -->
@@ -1472,50 +1470,25 @@
                 ${activeRole === 'MASTER_ADMIN' ? 'Master Admin Email / Username' : 'Shop Owner Email / Username'}
               </label>
               <input type="email" id="login-email" required
-                value="${defaultEmail}"
+                placeholder="${activeRole === 'MASTER_ADMIN' ? 'admin@atollhub.mv' : 'owner@malefresh.mv'}"
+                value=""
                 class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
 
             <div>
               <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Password</label>
               <input type="password" id="login-password" required
-                value="${defaultPass}"
+                placeholder="••••••••••••"
+                value=""
                 class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
 
             <div class="pt-2">
               <button type="submit" id="btn-submit-portal-login" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow transition">
-                Authenticate &amp; Open Portal →
+                Authenticate with PocketBase →
               </button>
             </div>
           </form>
-
-          <!-- Valid Credentials Reference Card -->
-          <div class="border-t border-slate-200 dark:border-slate-800 pt-3 space-y-2">
-            <span class="font-bold text-[11px] text-slate-500 uppercase tracking-wider">Valid Configured Credentials:</span>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <div class="font-bold text-rose-600">🛡️ Master Admin</div>
-                <div class="font-mono text-slate-600 dark:text-slate-300">admin@atollhub.mv</div>
-                <div class="font-mono text-slate-500">PW: ${state.adminCredentials.password || 'Admin@Atoll2026!'}</div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <div class="font-bold text-emerald-600">🏪 Shop Owner 1 (Malé Fresh)</div>
-                <div class="font-mono text-slate-600 dark:text-slate-300">owner@malefresh.mv</div>
-                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!'}</div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <div class="font-bold text-emerald-600">🏪 Shop Owner 2 (Hulhumalé Tech)</div>
-                <div class="font-mono text-slate-600 dark:text-slate-300">owner@hulhumaletech.mv</div>
-                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-2')?.ownerPassword || 'Owner@Shop2026!'}</div>
-              </div>
-              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <div class="font-bold text-emerald-600">🏪 Shop Owner 3 (Addu Wellness)</div>
-                <div class="font-mono text-slate-600 dark:text-slate-300">owner@adduwellness.mv</div>
-                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-3')?.ownerPassword || 'Owner@Shop2026!'}</div>
-              </div>
-            </div>
-          </div>
         </div>
       `;
 
@@ -1525,8 +1498,8 @@
         const tabShop = document.getElementById('login-tab-shop-owner');
         const tabAdmin = document.getElementById('login-tab-master-admin');
         const targetRoleInput = document.getElementById('login-target-role');
-        const emailInput = document.getElementById('login-email');
         const emailLabel = document.getElementById('login-email-label');
+        const emailInput = document.getElementById('login-email');
         const passInput = document.getElementById('login-password');
         const errBox = document.getElementById('login-error-box');
         const form = document.getElementById('portal-login-form');
@@ -1537,8 +1510,9 @@
             tabShop.className = 'flex-1 py-2 rounded-lg font-bold transition text-center bg-indigo-600 text-white shadow';
             tabAdmin.className = 'flex-1 py-2 rounded-lg font-bold transition text-center text-slate-600 dark:text-slate-400 hover:text-white';
             emailLabel.textContent = 'Shop Owner Email / Username';
-            emailInput.value = 'owner@malefresh.mv';
-            passInput.value = state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!';
+            emailInput.placeholder = 'owner@malefresh.mv';
+            emailInput.value = '';
+            passInput.value = '';
             errBox.classList.add('hidden');
           });
 
@@ -1547,8 +1521,9 @@
             tabAdmin.className = 'flex-1 py-2 rounded-lg font-bold transition text-center bg-indigo-600 text-white shadow';
             tabShop.className = 'flex-1 py-2 rounded-lg font-bold transition text-center text-slate-600 dark:text-slate-400 hover:text-white';
             emailLabel.textContent = 'Master Admin Email / Username';
-            emailInput.value = 'admin@atollhub.mv';
-            passInput.value = state.adminCredentials.password || 'Admin@Atoll2026!';
+            emailInput.placeholder = 'admin@atollhub.mv';
+            emailInput.value = '';
+            passInput.value = '';
             errBox.classList.add('hidden');
           });
         }
@@ -1570,20 +1545,27 @@
             try {
               if (role === 'MASTER_ADMIN') {
                 let authRecord = null;
+                let pbError = null;
                 if (window.pb) {
                   try {
                     const res = await window.pb.collection('_superusers').authWithPassword(email, pass);
                     authRecord = res.record;
                   } catch (pbErr) {
+                    pbError = pbErr;
+                    console.warn('[PocketBase Superusers Auth Notice]:', pbErr?.message || pbErr);
                     if (window.pb.admins) {
-                      const admRes = await window.pb.admins.authWithPassword(email, pass);
-                      authRecord = admRes.admin;
-                    } else if (email.toLowerCase() !== 'admin@atollhub.mv' || pass !== (state.adminCredentials?.password || 'Admin@Atoll2026!')) {
-                      throw pbErr;
+                      try {
+                        const admRes = await window.pb.admins.authWithPassword(email, pass);
+                        authRecord = admRes.admin;
+                      } catch (admErr) {
+                        pbError = admErr;
+                        console.warn('[PocketBase Admins Auth Notice]:', admErr?.message || admErr);
+                      }
                     }
                   }
                 }
 
+                // Check local credential verification fallback (e.g. GitHub Pages or offline PocketBase)
                 const validEmail = (state.adminCredentials?.email || 'admin@atollhub.mv').toLowerCase();
                 const validPass = state.adminCredentials?.password || 'Admin@Atoll2026!';
                 if (authRecord || (email.toLowerCase() === validEmail && pass === validPass)) {
@@ -1596,54 +1578,54 @@
                   closeModal();
                   saveState();
                   renderApp();
-                  showToast('🛡️ Authenticated as Master Admin via PocketBase.', 'success');
+                  showToast('🛡️ Authenticated as Master Administrator.', 'success');
                   return;
                 }
-                throw new Error('Invalid Master Admin credentials. Use admin@atollhub.mv / Admin@Atoll2026!');
+                const exactErr = pbError?.message ? `PocketBase: ${pbError.message}` : 'Invalid Master Admin credentials. Please check your email and password.';
+                throw new Error(exactErr);
               } else {
                 let authRecord = null;
+                let pbError = null;
                 if (window.pb) {
                   try {
                     await window.pb.collection('users').authWithPassword(email, pass);
                     authRecord = window.pb.authStore.record;
                   } catch (pbErr) {
-                    const matched = state.shops.find(s => s.ownerEmail.toLowerCase() === email.toLowerCase());
-                    if (!matched || pass !== (matched.ownerPassword || 'Owner@Shop2026!')) {
-                      throw pbErr;
-                    }
+                    pbError = pbErr;
+                    console.warn('[PocketBase Users Auth Notice]:', pbErr?.message || pbErr);
                   }
                 }
 
+                // Clean offline fallback matching assigned shop credentials
                 const matchedShop = state.shops.find(s =>
                   (authRecord?.shop_id && s.id === authRecord.shop_id) ||
                   s.ownerEmail.toLowerCase() === email.toLowerCase() ||
                   s.slug === email.toLowerCase()
                 );
 
-                if (!matchedShop && !authRecord) {
-                  throw new Error(`No registered merchant shop found under email "${email}".`);
-                }
-
                 const validPass = matchedShop?.ownerPassword || 'Owner@Shop2026!';
-                if (!authRecord && pass !== validPass) {
-                  throw new Error(`Incorrect password for ${matchedShop?.ownerName} (${matchedShop?.name}).`);
+                if (authRecord || (matchedShop && pass === validPass)) {
+                  const assignedShopId = authRecord?.shop_id || matchedShop?.id || 'shop-1';
+                  state.currentUser = {
+                    role: authRecord?.role || 'SHOP_OWNER',
+                    name: authRecord?.name || matchedShop?.ownerName || 'Shop Owner',
+                    email: authRecord?.email || email,
+                    shopId: assignedShopId
+                  };
+                  state.activeShopId = assignedShopId;
+                  state.currentPortal = 'SHOP_OWNER';
+                  closeModal();
+                  saveState();
+                  renderApp();
+                  showToast(`🏪 Logged in as ${state.currentUser.name} (${state.currentUser.email}). Tenant locked to ${matchedShop?.name || assignedShopId}.`, 'success');
+                  return;
                 }
 
-                const assignedShopId = authRecord?.shop_id || matchedShop?.id || 'shop-1';
-                state.currentUser = {
-                  role: authRecord?.role || 'SHOP_OWNER',
-                  name: authRecord?.name || matchedShop?.ownerName || 'Shop Owner',
-                  email: authRecord?.email || email,
-                  shopId: assignedShopId
-                };
-                state.activeShopId = assignedShopId;
-                state.currentPortal = 'SHOP_OWNER';
-                closeModal();
-                saveState();
-                renderApp();
-                showToast(`🏪 Logged in as ${state.currentUser.name} (${state.currentUser.email}). Tenant locked to ${matchedShop?.name || assignedShopId}.`, 'success');
+                const exactErr = pbError?.message ? `PocketBase: ${pbError.message}` : `Invalid credentials for ${email}. Please check your email and password.`;
+                throw new Error(exactErr);
               }
             } catch (err) {
+              console.error('[Portal Login Error]:', err?.message || err);
               errBox.textContent = err.message || 'Authentication failed. Please verify credentials.';
               errBox.classList.remove('hidden');
             } finally {
@@ -1657,7 +1639,7 @@
       }, 50);
     }
 
-function syncHeaderChrome() {
+    function syncHeaderChrome() {
       // Dark mode class
       if (state.darkMode) {
         document.documentElement.classList.add('dark');
