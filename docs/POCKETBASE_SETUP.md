@@ -44,3 +44,4 @@ The AtollHub Multi-Shop E-Commerce, POS & FEFO Inventory platform connects seaml
 ## 5. Session & Logout
 - When logged in, the user's email, assigned shop badge, and portal buttons are displayed in the header.
 - Clicking **`Logout`** executes `pb.authStore.clear()`, removes all tokens, and returns the session immediately to the Customer Marketplace.
+

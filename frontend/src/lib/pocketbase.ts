@@ -31,6 +31,7 @@ export async function isPocketBaseReachable(): Promise<boolean> {
  * Authenticate Master Admin via PocketBase _superusers collection (with admins fallback)
  */
 export async function loginMasterAdmin(email: string, password: string): Promise<PBAuthUser> {
+  let pbError: any = null;
   try {
     // PocketBase v0.23+ superusers
     const authData = await pb.collection('_superusers').authWithPassword(email, password);
@@ -41,6 +42,9 @@ export async function loginMasterAdmin(email: string, password: string): Promise
       role: 'MASTER_ADMIN'
     };
   } catch (err: any) {
+    pbError = err;
+    console.warn('[PocketBase Master Admin Auth Notice]:', err?.message || err);
+
     // If PocketBase older version with admins collection
     if ((pb as any).admins) {
       try {
@@ -51,10 +55,13 @@ export async function loginMasterAdmin(email: string, password: string): Promise
           name: 'Ibrahim Rasheed (Master Admin)',
           role: 'MASTER_ADMIN'
         };
-      } catch {}
+      } catch (admErr: any) {
+        pbError = admErr;
+        console.warn('[PocketBase Admins Auth Notice]:', admErr?.message || admErr);
+      }
     }
 
-    // Seamless offline/local fallback if local PB daemon is not running
+    // Seamless offline/local fallback if cloud/local PB daemon is not reachable (e.g. GitHub Pages)
     if (email.toLowerCase() === 'admin@atollhub.mv' && password === 'Admin@Atoll2026!') {
       return {
         id: 'admin-master-01',
@@ -63,7 +70,9 @@ export async function loginMasterAdmin(email: string, password: string): Promise
         role: 'MASTER_ADMIN'
       };
     }
-    throw new Error(err?.message || 'Invalid Master Admin credentials. Use admin@atollhub.mv / Admin@Atoll2026!');
+
+    const exactMessage = pbError?.message ? `PocketBase: ${pbError.message}` : 'Invalid Master Admin credentials. Please check your email and password.';
+    throw new Error(exactMessage);
   }
 }
 
@@ -75,6 +84,7 @@ export async function loginShopUser(
   password: string,
   fallbackShops: any[] = []
 ): Promise<PBAuthUser> {
+  let pbError: any = null;
   try {
     const authData = await pb.collection('users').authWithPassword(email, password);
     const record = pb.authStore.record;
@@ -91,7 +101,10 @@ export async function loginShopUser(
       shopName: matchingShop?.name || 'Assigned Shop'
     };
   } catch (err: any) {
-    // Seamless offline/local fallback if PB daemon is not running
+    pbError = err;
+    console.warn('[PocketBase Shop User Auth Notice]:', err?.message || err);
+
+    // Seamless offline/local fallback if PB daemon is not reachable (e.g. GitHub Pages)
     const shop = fallbackShops.find(
       (s: any) =>
         s.ownerEmail?.toLowerCase() === email.toLowerCase() ||
@@ -109,7 +122,9 @@ export async function loginShopUser(
         shopName: shop.name
       };
     }
-    throw new Error(err?.message || `Invalid credentials for ${email}. (Use Owner@Shop2026! or newly reset password)`);
+
+    const exactMessage = pbError?.message ? `PocketBase: ${pbError.message}` : `Invalid credentials for ${email}.`;
+    throw new Error(exactMessage);
   }
 }
 
@@ -117,5 +132,9 @@ export async function loginShopUser(
  * Log out and clear PocketBase authStore
  */
 export function logoutPocketBase(): void {
-  pb.authStore.clear();
+  try {
+    pb.authStore.clear();
+  } catch (e) {
+    console.warn('[PocketBase Logout Warning]:', e);
+  }
 }

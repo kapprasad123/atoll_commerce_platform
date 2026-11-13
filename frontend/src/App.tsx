@@ -279,6 +279,7 @@ export default function App() {
         showToast(`🏪 Logged in as ${user.name} (${user.email}). Tenant locked to ${user.shopName}.`);
       }
     } catch (err: any) {
+      console.error('[Portal Login Submit Error]:', err?.message || err);
       setLoginError(err.message || 'Authentication failed. Please verify credentials.');
     } finally {
       setLoginLoading(false);
@@ -292,10 +293,10 @@ export default function App() {
     showToast('Logged out successfully. Returned to Customer Marketplace.');
   };
 
-  const openLoginFor = (role: 'MASTER_ADMIN' | 'SHOP_OWNER', defaultEmail = '', defaultPw = '') => {
+  const openLoginFor = (role: 'MASTER_ADMIN' | 'SHOP_OWNER') => {
     setLoginTargetRole(role);
-    setLoginEmail(defaultEmail);
-    setLoginPassword(defaultPw);
+    setLoginEmail('');
+    setLoginPassword('');
     setLoginError(null);
     setLoginModalOpen(true);
   };
@@ -1593,6 +1594,8 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   setLoginTargetRole('SHOP_OWNER');
+                  setLoginEmail('');
+                  setLoginPassword('');
                   setLoginError(null);
                 }}
                 className={`py-2 rounded-lg transition ${loginTargetRole === 'SHOP_OWNER' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
@@ -1603,6 +1606,8 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   setLoginTargetRole('MASTER_ADMIN');
+                  setLoginEmail('');
+                  setLoginPassword('');
                   setLoginError(null);
                 }}
                 className={`py-2 rounded-lg transition ${loginTargetRole === 'MASTER_ADMIN' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
@@ -1657,64 +1662,6 @@ export default function App() {
               </div>
             </form>
 
-            {/* Quick Demo Credential Fillers */}
-            <div className="border-t border-slate-100 pt-3 space-y-2">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quick Fill Demo Accounts:</div>
-              <div className="grid grid-cols-1 gap-1.5 text-[11px]">
-                {loginTargetRole === 'MASTER_ADMIN' ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginEmail('admin@atollhub.mv');
-                      setLoginPassword('Admin@Atoll2026!');
-                    }}
-                    className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-left text-rose-900"
-                  >
-                    <div className="font-bold">🛡️ Master Admin: admin@atollhub.mv</div>
-                    <div className="text-slate-500 font-mono text-[10px]">Pass: Admin@Atoll2026!</div>
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const s = data.shops.find((x: any) => x.id === 'shop-1');
-                        setLoginEmail('owner@malefresh.mv');
-                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
-                      }}
-                      className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left text-emerald-900"
-                    >
-                      <div className="font-bold">🏪 Shop 1: owner@malefresh.mv</div>
-                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-1')?.ownerPassword || 'Owner@Shop2026!'}</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const s = data.shops.find((x: any) => x.id === 'shop-2');
-                        setLoginEmail('owner@hulhumaletech.mv');
-                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
-                      }}
-                      className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left text-indigo-900"
-                    >
-                      <div className="font-bold">🏪 Shop 2: owner@hulhumaletech.mv</div>
-                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-2')?.ownerPassword || 'Owner@Shop2026!'}</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const s = data.shops.find((x: any) => x.id === 'shop-3');
-                        setLoginEmail('owner@adduwellness.mv');
-                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
-                      }}
-                      className="p-2 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 text-left text-teal-900"
-                    >
-                      <div className="font-bold">🏪 Shop 3: owner@adduwellness.mv</div>
-                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-3')?.ownerPassword || 'Owner@Shop2026!'}</div>
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       )}
