@@ -3423,6 +3423,9 @@
                               ✕ Reject
                             </button>
                           ` : ''}
+                          <button type="button" data-action="admin-edit-shop" data-shop-id="${s.id}" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white font-semibold flex items-center gap-1" title="Edit Shop Details">
+                            ✏️ Edit
+                          </button>
                           <button type="button" data-action="admin-reset-owner-pw" data-shop-id="${s.id}" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white font-semibold" title="Reset Shop Owner Password">
                             🔑 Reset PW
                           </button>
@@ -5379,6 +5382,165 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
         addAuditLog('MASTER_ADMIN', 'Ibrahim Rasheed', shop.id, `SHOP_STATUS_${newStatus}`, `Changed ${shop.name} status from ${oldStatus} to ${newStatus}`);
         renderApp();
         showToast(`Master Admin updated "${shop.name}" status to ${newStatus}!`, 'success');
+        return;
+      }
+
+      if (action === 'admin-edit-shop') {
+        const sid = btn.getAttribute('data-shop-id');
+        const shop = state.shops.find(s => s.id === sid);
+        if (!shop) return;
+
+        const categories = [
+          'Groceries & Pantry', 'Electronics & Tech', 'Pharmacy & Wellness',
+          'Island Provisions', 'Fashion & Apparel', 'Home & Hardware', 'Fresh Produce'
+        ];
+
+        openModal(`✏️ Edit Shop Details (${shop.name})`, `
+          <div class="space-y-3 text-xs">
+            <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200">
+              <strong>Master Admin Tenant Governance:</strong> Modifying shop parameters updates the tenant in place while strictly preserving <code>shop.id</code> (${shop.id}) and all linked inventory, orders, customer credit profiles, and ledger history.
+            </div>
+
+            <input type="hidden" id="edit-shop-id" value="${shop.id}" />
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Shop / Business Name *</label>
+                <input type="text" id="edit-shop-name" value="${shop.name}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Business Category *</label>
+                <select id="edit-shop-category" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none">
+                  ${categories.map(cat => `<option value="${cat}" ${shop.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Owner Full Name *</label>
+                <input type="text" id="edit-shop-owner-name" value="${shop.ownerName}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Owner Email (Login ID) *</label>
+                <input type="email" id="edit-shop-owner-email" value="${shop.ownerEmail}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Contact Phone *</label>
+                <input type="text" id="edit-shop-phone" value="${shop.phone}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Island Location *</label>
+                <input type="text" id="edit-shop-island" value="${shop.island}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Atoll Location *</label>
+                <input type="text" id="edit-shop-atoll" value="${shop.atoll || 'Kaafu Atoll'}" required class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold mb-1">Default Base Currency *</label>
+              <select id="edit-shop-currency" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="MVR" ${shop.defaultCurrency === 'MVR' ? 'selected' : ''}>MVR (Maldivian Rufiyaa)</option>
+                <option value="USD" ${shop.defaultCurrency === 'USD' ? 'selected' : ''}>USD (US Dollar)</option>
+                <option value="INR" ${shop.defaultCurrency === 'INR' ? 'selected' : ''}>INR (Indian Rupee)</option>
+                <option value="EUR" ${shop.defaultCurrency === 'EUR' ? 'selected' : ''}>EUR (Euro)</option>
+                <option value="GBP" ${shop.defaultCurrency === 'GBP' ? 'selected' : ''}>GBP (British Pound)</option>
+              </select>
+            </div>
+
+            <div class="pt-2 flex gap-2">
+              <button type="button" data-action="close-modal" class="w-1/3 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-bold rounded-xl">
+                Cancel
+              </button>
+              <button type="button" data-action="confirm-admin-edit-shop" class="w-2/3 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold shadow transition">
+                Save Changes &amp; Log Audit Entry →
+              </button>
+            </div>
+          </div>
+        `);
+        return;
+      }
+
+      if (action === 'confirm-admin-edit-shop') {
+        const sid = document.getElementById('edit-shop-id')?.value;
+        const shop = state.shops.find(s => s.id === sid);
+        if (!shop) return;
+
+        const name = (document.getElementById('edit-shop-name')?.value || '').trim();
+        const category = document.getElementById('edit-shop-category')?.value || shop.category;
+        const ownerName = (document.getElementById('edit-shop-owner-name')?.value || '').trim();
+        const ownerEmail = (document.getElementById('edit-shop-owner-email')?.value || '').trim();
+        const phone = (document.getElementById('edit-shop-phone')?.value || '').trim();
+        const island = (document.getElementById('edit-shop-island')?.value || '').trim();
+        const atoll = (document.getElementById('edit-shop-atoll')?.value || '').trim();
+        const currency = document.getElementById('edit-shop-currency')?.value || shop.defaultCurrency;
+
+        if (!name || !ownerName || !ownerEmail) {
+          showToast('Please fill all required fields.', 'error');
+          return;
+        }
+
+        // Update existing shop in place, strictly preserving shop.id
+        shop.name = name;
+        shop.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        shop.category = category;
+        shop.ownerName = ownerName;
+        shop.ownerEmail = ownerEmail;
+        shop.phone = phone;
+        shop.whatsapp = phone.replace(/[^0-9]/g, '');
+        shop.viber = phone.replace(/[^0-9]/g, '');
+        shop.island = island;
+        shop.atoll = atoll;
+        shop.address = island;
+        shop.defaultCurrency = currency;
+
+        // Synchronize with PocketBase if available
+        if (window.pb) {
+          try {
+            window.pb.collection('shops').update(shop.id, {
+              name,
+              slug: shop.slug,
+              category,
+              ownerName,
+              ownerEmail,
+              phone,
+              island,
+              atoll,
+              defaultCurrency: currency
+            }).catch(()=>{});
+
+            // Sync updated owner email to linked shop owner user account
+            window.pb.collection('users').getList(1, 1, {
+              filter: `shop_id = "${shop.id}"`
+            }).then(l => {
+              if (l.items.length > 0) {
+                window.pb.collection('users').update(l.items[0].id, {
+                  email: ownerEmail,
+                  name: ownerName
+                }).catch(()=>{});
+              }
+            }).catch(()=>{});
+          } catch(e) {}
+        }
+
+        // Record SHOP_UPDATED audit log entry
+        addAuditLog(
+          'MASTER_ADMIN',
+          state.currentUser?.name || 'Master Admin',
+          shop.id,
+          'SHOP_UPDATED',
+          `Updated details for shop ${name} (${shop.id}): category ${category}, owner ${ownerName} (${ownerEmail}), phone ${phone}, location ${island}/${atoll}, currency ${currency}`
+        );
+
+        closeModal();
+        saveState();
+        renderApp();
+        showToast(`Shop '${shop.name}' details updated successfully!`, 'success');
         return;
       }
 
