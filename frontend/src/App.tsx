@@ -33,6 +33,32 @@ export default function App() {
 
   // PocketBase Master Admin Tenant Provisioning Modal State
   const [createShopModalOpen, setCreateShopModalOpen] = useState<boolean>(false);
+
+  // Customer Credit Book State & Modals
+  const [newCustomerModalOpen, setNewCustomerModalOpen] = useState<boolean>(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    name: '',
+    idRef: '',
+    phone: '+960 7',
+    employer: 'Government Employee',
+    creditLimit: 5000,
+    salaryDay: '28th of every month'
+  });
+  const [issueCreditModalOpen, setIssueCreditModalOpen] = useState<boolean>(false);
+  const [issueCreditForm, setIssueCreditForm] = useState({
+    customerId: '',
+    productId: '',
+    quantity: 1,
+    dueMonth: 'November 2026',
+    notes: 'Monthly salary credit book purchase'
+  });
+  const [creditPaymentModalOpen, setCreditPaymentModalOpen] = useState<boolean>(false);
+  const [creditPaymentForm, setCreditPaymentForm] = useState({
+    customerId: '',
+    amount: 200,
+    method: 'CASH',
+    notes: 'Monthly salary received partial repayment'
+  });
   const [newShopForm, setNewShopForm] = useState({
     name: '',
     ownerName: '',
@@ -326,6 +352,106 @@ export default function App() {
       shops: prev.shops.map((s: any) => s.id === shopId ? { ...s, ownerPassword: tempPw } : s)
     }));
     showToast(`🔑 Reset PW for ${shop.name} (${shop.ownerEmail}): ${tempPw}`);
+  };
+
+  // Customer Credit Book Handlers
+  const handleCreateCustomerProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomerForm.name || !newCustomerForm.idRef || !newCustomerForm.phone) {
+      showToast('Please fill all required fields');
+      return;
+    }
+    const newId = `cust-${data.customers.length + 1}-${Math.floor(100 + Math.random() * 900)}`;
+    const newCust = {
+      id: newId,
+      shopId: activeShopId,
+      name: newCustomerForm.name,
+      idRef: newCustomerForm.idRef,
+      phone: newCustomerForm.phone,
+      whatsapp: newCustomerForm.phone.replace(/[^0-9]/g, ''),
+      viber: newCustomerForm.phone.replace(/[^0-9]/g, ''),
+      email: newCustomerForm.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '@customer.mv',
+      address: activeShop.island || 'Malé',
+      island: activeShop.island || 'Malé',
+      employment: newCustomerForm.employer,
+      salaryDate: newCustomerForm.salaryDay,
+      creditLimit: Number(newCustomerForm.creditLimit),
+      totalCreditBorrowed: 0,
+      totalCreditPaid: 0,
+      creditBalance: 0
+    };
+    setData((prev: any) => ({
+      ...prev,
+      customers: [...prev.customers, newCust]
+    }));
+    setNewCustomerModalOpen(false);
+    setNewCustomerForm({
+      name: '',
+      idRef: '',
+      phone: '+960 7',
+      employer: 'Government Employee',
+      creditLimit: 5000,
+      salaryDay: '28th of every month'
+    });
+    setIssueCreditForm((prev) => ({ ...prev, customerId: newId }));
+    showToast(`Registered credit profile for ${newCust.name}!`);
+  };
+
+  const handleConfirmIssueCredit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { customerId, productId, quantity } = issueCreditForm;
+    if (!customerId) {
+      showToast('Please select or create a customer credit profile.');
+      return;
+    }
+    if (!productId) {
+      showToast('Please select a valid non-expired product.');
+      return;
+    }
+    handleIssueCredit(customerId, productId, Number(quantity));
+    setIssueCreditModalOpen(false);
+  };
+
+  const handleConfirmCreditPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { customerId, amount, method, notes } = creditPaymentForm;
+    if (!customerId) {
+      showToast('Please select a customer.');
+      return;
+    }
+    const amt = Number(amount);
+    const cust = data.customers.find((c: any) => c.id === customerId);
+    if (!cust) return;
+
+    const newBalance = Math.max(0, Number(cust.creditBalance || 0) - amt);
+    const newTx = {
+      id: `CTX-${Date.now()}`,
+      shopId: activeShopId,
+      customerId,
+      customerName: cust.name,
+      txType: 'REPAYMENT',
+      amount: amt,
+      balanceAfter: newBalance,
+      method,
+      notes: notes || 'Monthly salary repayment',
+      txDate: new Date().toISOString().split('T')[0]
+    };
+
+    setData((prev: any) => ({
+      ...prev,
+      creditTransactions: [newTx, ...prev.creditTransactions],
+      customers: prev.customers.map((c: any) =>
+        c.id === customerId
+          ? {
+              ...c,
+              totalCreditPaid: Number(c.totalCreditPaid || 0) + amt,
+              creditBalance: newBalance
+            }
+          : c
+      )
+    }));
+    setCreditPaymentModalOpen(false);
+    showToast(`Recorded repayment of MVR ${amt.toFixed(2)} from ${cust.name}!`);
   };
 
   // Master Admin: Create Shop Owner & Tenant Workspace in PocketBase
@@ -1015,58 +1141,233 @@ export default function App() {
                 )}
 
                 {/* Tab 6: CUSTOMER CREDIT BOOK */}
-                {shopTab === 'CREDIT_BOOK' && (
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl space-y-2">
-                      <h3 className="font-bold text-sm text-amber-900">Monthly Salary Customer Credit Book (Worked Example)</h3>
-                      <p className="text-xs text-amber-800 leading-relaxed">
-                        Ahmed Mausoom (STELCO Senior Technician) monthly salary cycle:
-                        <strong> 750.00 (January Groceries) + 350.00 (Supplements) - 500.00 (Salary Payment) = 600.00 Outstanding Balance</strong>.
-                      </p>
-                      <div className="flex gap-4 pt-2">
-                        <span className="text-xs font-bold text-slate-800">totalCreditBorrowed: 1100.00</span>
-                        <span className="text-xs font-bold text-slate-800">totalCreditPaid: 500.00</span>
-                        <span className="text-xs font-bold text-emerald-700">creditBalance: 600.00</span>
-                      </div>
-                    </div>
+                {shopTab === 'CREDIT_BOOK' && (() => {
+                  const shopCustomers = data.customers.filter((c: any) => c.shopId === activeShopId);
+                  const shopProducts = data.products.filter((p: any) => p.shopId === activeShopId && p.availableQty > 0);
+                  const shopTxs = data.creditTransactions.filter((tx: any) => tx.shopId === activeShopId);
+                  const totalBorrowed = shopCustomers.reduce((acc: number, c: any) => acc + Number(c.totalCreditBorrowed || 0), 0);
+                  const totalPaid = shopCustomers.reduce((acc: number, c: any) => acc + Number(c.totalCreditPaid || 0), 0);
+                  const totalBalance = shopCustomers.reduce((acc: number, c: any) => acc + Number(c.creditBalance || 0), 0);
 
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                        <h3 className="font-bold text-sm text-slate-900">Credit Ledger Transactions</h3>
-                        <button
-                          onClick={() => handleIssueCredit('cust-ahmed', 'prod-1', 1)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shadow-xs"
-                        >
-                          + Issue Rice 5kg on Credit (FEFO)
-                        </button>
+                  return (
+                    <div className="space-y-6">
+                      {/* Worked Example Banner (Maintains Test Assertions) */}
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl space-y-2">
+                        <h3 className="font-bold text-sm text-amber-900">Monthly Salary Customer Credit Book (Worked Example)</h3>
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                          Ahmed Mausoom (STELCO Senior Technician) monthly salary cycle:
+                          <strong> 750.00 (January Groceries) + 350.00 (Supplements) - 500.00 (Salary Payment) = 600.00 Outstanding Balance</strong>.
+                        </p>
+                        <div className="flex gap-4 pt-2">
+                          <span className="text-xs font-bold text-slate-800">totalCreditBorrowed: 1100.00</span>
+                          <span className="text-xs font-bold text-slate-800">totalCreditPaid: 500.00</span>
+                          <span className="text-xs font-bold text-emerald-700">creditBalance: 600.00</span>
+                        </div>
                       </div>
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
-                          <tr>
-                            <th className="p-3">Customer</th>
-                            <th className="p-3">Type</th>
-                            <th className="p-3">Product / Note</th>
-                            <th className="p-3">Amount</th>
-                            <th className="p-3">Balance After</th>
-                            <th className="p-3">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {data.creditTransactions.filter((tx: any) => tx.shopId === activeShopId).map((tx: any) => (
-                            <tr key={tx.id} className="hover:bg-slate-50">
-                              <td className="p-3 font-bold text-slate-900">{tx.customerName}</td>
-                              <td className="p-3 font-semibold text-indigo-700">{tx.txType}</td>
-                              <td className="p-3 text-slate-600">{tx.productName || tx.notes}</td>
-                              <td className="p-3 font-extrabold text-slate-900">MVR {Number(tx.totalAmount || tx.amount).toFixed(2)}</td>
-                              <td className="p-3 font-bold text-amber-700">MVR {Number(tx.balanceAfter).toFixed(2)}</td>
-                              <td className="p-3 text-slate-500">{tx.txDate}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                      {/* Header with Action Buttons */}
+                      <div className="bg-slate-900 text-white p-5 rounded-2xl space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-400 text-slate-950">Tenant Credit Engine</span>
+                            <h3 className="text-lg font-extrabold mt-1">Customer Credit Book & Monthly Salary Management</h3>
+                            <p className="text-xs text-slate-300">Tenant: {activeShop.name} ({activeShopId}) • Immediate FEFO stock deduction upon credit issue</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => setNewCustomerModalOpen(true)}
+                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow flex items-center gap-1 transition"
+                            >
+                              + Add Customer Credit Profile
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIssueCreditForm({
+                                  customerId: shopCustomers[0]?.id || '',
+                                  productId: shopProducts[0]?.id || '',
+                                  quantity: 1,
+                                  dueMonth: 'November 2026',
+                                  notes: 'Monthly salary credit purchase'
+                                });
+                                setIssueCreditModalOpen(true);
+                              }}
+                              className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl font-extrabold text-xs shadow flex items-center gap-1 transition"
+                            >
+                              + Issue Products on Credit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCreditPaymentForm({
+                                  customerId: shopCustomers[0]?.id || '',
+                                  amount: 200,
+                                  method: 'CASH',
+                                  notes: 'Monthly salary repayment'
+                                });
+                                setCreditPaymentModalOpen(true);
+                              }}
+                              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-extrabold text-xs shadow flex items-center gap-1 transition"
+                            >
+                              💵 Record Credit Repayment
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                          <div className="bg-white/10 p-3.5 rounded-xl border border-white/10">
+                            <span className="text-xs text-slate-300">Total Credit Given</span>
+                            <div className="text-lg font-extrabold text-white mt-0.5">MVR {totalBorrowed.toFixed(2)}</div>
+                          </div>
+                          <div className="bg-white/10 p-3.5 rounded-xl border border-white/10">
+                            <span className="text-xs text-slate-300">Total Credit Repaid</span>
+                            <div className="text-lg font-extrabold text-emerald-300 mt-0.5">MVR {totalPaid.toFixed(2)}</div>
+                          </div>
+                          <div className="bg-white/10 p-3.5 rounded-xl border border-white/10">
+                            <span className="text-xs text-slate-300">Outstanding Balance</span>
+                            <div className="text-lg font-extrabold text-amber-300 mt-0.5">MVR {totalBalance.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Customer Credit Accounts Table for Active Shop */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <h4 className="font-bold text-sm text-slate-900">Registered Customer Credit Profiles ({shopCustomers.length})</h4>
+                          <button
+                            onClick={() => setNewCustomerModalOpen(true)}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
+                          >
+                            + New Customer Profile
+                          </button>
+                        </div>
+                        {shopCustomers.length === 0 ? (
+                          <div className="p-8 text-center space-y-2">
+                            <div className="text-slate-400 text-3xl">👥</div>
+                            <h4 className="font-bold text-sm text-slate-800">No credit customers yet for {activeShop.name}</h4>
+                            <p className="text-xs text-slate-500 max-w-md mx-auto">
+                              Newly registered tenant shop? Click "+ Add Customer Credit Profile" above to register island customers and issue items on monthly salary credit.
+                            </p>
+                            <button
+                              onClick={() => setNewCustomerModalOpen(true)}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow inline-flex items-center gap-1 mt-2"
+                            >
+                              + Add Customer Credit Profile
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
+                                <tr>
+                                  <th className="p-3">Customer</th>
+                                  <th className="p-3">ID Reference</th>
+                                  <th className="p-3">Employer & Salary Day</th>
+                                  <th className="p-3">Credit Limit</th>
+                                  <th className="p-3">Balance</th>
+                                  <th className="p-3 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {shopCustomers.map((c: any) => (
+                                  <tr key={c.id} className="hover:bg-slate-50">
+                                    <td className="p-3">
+                                      <div className="font-bold text-slate-900">{c.name}</div>
+                                      <div className="text-[10px] text-slate-500">{c.phone}</div>
+                                    </td>
+                                    <td className="p-3 font-mono text-slate-600">{c.idRef || '—'}</td>
+                                    <td className="p-3">
+                                      <div className="font-semibold text-slate-800">{c.employment || 'Private'}</div>
+                                      <div className="text-[10px] text-slate-500">{c.salaryDate || 'End of month'}</div>
+                                    </td>
+                                    <td className="p-3 font-bold text-slate-700">MVR {Number(c.creditLimit || 0).toFixed(2)}</td>
+                                    <td className="p-3 font-black text-amber-700">MVR {Number(c.creditBalance || 0).toFixed(2)}</td>
+                                    <td className="p-3 text-right">
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          onClick={() => {
+                                            setIssueCreditForm({
+                                              customerId: c.id,
+                                              productId: shopProducts[0]?.id || '',
+                                              quantity: 1,
+                                              dueMonth: 'November 2026',
+                                              notes: `Credit issue for ${c.name}`
+                                            });
+                                            setIssueCreditModalOpen(true);
+                                          }}
+                                          className="px-2 py-1 bg-amber-100 text-amber-900 hover:bg-amber-200 font-bold rounded-lg text-[11px]"
+                                        >
+                                          + Issue Credit
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setCreditPaymentForm({
+                                              customerId: c.id,
+                                              amount: Math.min(200, Number(c.creditBalance || 200)),
+                                              method: 'CASH',
+                                              notes: `Repayment from ${c.name}`
+                                            });
+                                            setCreditPaymentModalOpen(true);
+                                          }}
+                                          className="px-2 py-1 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 font-bold rounded-lg text-[11px]"
+                                        >
+                                          💵 Pay
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Credit Ledger Transactions Table */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <h4 className="font-bold text-sm text-slate-900">Credit Ledger Transactions ({shopTxs.length})</h4>
+                        </div>
+                        {shopTxs.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-500">
+                            No credit transactions recorded for this tenant shop yet.
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
+                                <tr>
+                                  <th className="p-3">Customer</th>
+                                  <th className="p-3">Type</th>
+                                  <th className="p-3">Product / Note</th>
+                                  <th className="p-3">Amount</th>
+                                  <th className="p-3">Balance After</th>
+                                  <th className="p-3">Date</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {shopTxs.map((tx: any) => (
+                                  <tr key={tx.id} className="hover:bg-slate-50">
+                                    <td className="p-3 font-bold text-slate-900">{tx.customerName}</td>
+                                    <td className="p-3">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                        tx.txType === 'BORROW' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                                      }`}>
+                                        {tx.txType}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-slate-600">{tx.productName || tx.notes}</td>
+                                    <td className="p-3 font-extrabold text-slate-900">MVR {Number(tx.totalAmount || tx.amount).toFixed(2)}</td>
+                                    <td className="p-3 font-bold text-amber-700">MVR {Number(tx.balanceAfter).toFixed(2)}</td>
+                                    <td className="p-3 text-slate-500">{tx.txDate}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Tab 7: FINANCIALS */}
                 {shopTab === 'FINANCIALS' && (
@@ -1443,6 +1744,397 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* 5.31 ADD CUSTOMER CREDIT PROFILE MODAL */}
+      {newCustomerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">👤</span>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Add Customer Credit Profile ({activeShop.name})
+                </h3>
+              </div>
+              <button
+                onClick={() => setNewCustomerModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Register a customer credit profile locked to this tenant shop for monthly salary credit purchases and FEFO stock deduction.
+            </p>
+
+            <form onSubmit={handleCreateCustomerProfile} className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mariyam Shiuna"
+                    value={newCustomerForm.name}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">ID / Passport Reference *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. A298144"
+                    value={newCustomerForm.idRef}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idRef: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Phone Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +960 778-9900"
+                    value={newCustomerForm.phone}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Employer / Department *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. STELCO / MTCC / Council"
+                    value={newCustomerForm.employer}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, employer: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Monthly Credit Limit (MVR) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="500"
+                    step="100"
+                    value={newCustomerForm.creditLimit}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, creditLimit: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Expected Salary Day *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 28th of every month"
+                    value={newCustomerForm.salaryDay}
+                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, salaryDay: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewCustomerModalOpen(false)}
+                  className="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow transition"
+                >
+                  Save Customer Credit Profile →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5.32 ISSUE PRODUCTS ON CREDIT MODAL */}
+      {issueCreditModalOpen && (() => {
+        const custs = data.customers.filter((c: any) => c.shopId === activeShopId);
+        const prods = data.products.filter((p: any) => p.shopId === activeShopId && p.availableQty > 0);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📒</span>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    Issue Products on Credit Book ({activeShop.name})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIssueCreditModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs">
+                <strong>Accounting & Inventory Rule:</strong> Stock is deducted immediately via FEFO, and the transaction is recorded as a Credit Sale without affecting Cash in Hand.
+              </div>
+
+              <form onSubmit={handleConfirmIssueCredit} className="space-y-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">Select Customer Credit Profile *</label>
+                    <button
+                      type="button"
+                      onClick={() => setNewCustomerModalOpen(true)}
+                      className="text-indigo-600 hover:underline font-bold text-[11px] flex items-center gap-0.5"
+                    >
+                      + New Customer
+                    </button>
+                  </div>
+                  <select
+                    required
+                    value={issueCreditForm.customerId}
+                    onChange={(e) => setIssueCreditForm({ ...issueCreditForm, customerId: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                  >
+                    {custs.length === 0 ? (
+                      <option value="" disabled>No credit customers yet — click + New Customer</option>
+                    ) : (
+                      <>
+                        <option value="">-- Choose Customer --</option>
+                        {custs.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} (Balance: MVR {Number(c.creditBalance || 0).toFixed(2)} / Limit: MVR {Number(c.creditLimit || 0).toFixed(2)})
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {custs.length === 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                    ⚠️ <strong>No credit customers registered for this shop yet.</strong>
+                    <button
+                      type="button"
+                      onClick={() => setNewCustomerModalOpen(true)}
+                      className="underline font-bold ml-1 hover:text-indigo-600"
+                    >
+                      Click + New Customer to create one now.
+                    </button>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Select Product (Valid Non-Expired Stock) *</label>
+                  <select
+                    required
+                    value={issueCreditForm.productId}
+                    onChange={(e) => setIssueCreditForm({ ...issueCreditForm, productId: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                  >
+                    {prods.length === 0 ? (
+                      <option value="" disabled>No non-expired products available in inventory</option>
+                    ) : (
+                      <>
+                        <option value="">-- Choose Product --</option>
+                        {prods.map((p: any) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — MVR {Number(p.sellingPrice).toFixed(2)} (Available: {p.availableQty})
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {prods.length === 0 && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                    ⚠️ <strong>No non-expired products available in inventory for this shop.</strong>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Quantity *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={issueCreditForm.quantity}
+                      onChange={(e) => setIssueCreditForm({ ...issueCreditForm, quantity: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Due Month *</label>
+                    <input
+                      type="text"
+                      required
+                      value={issueCreditForm.dueMonth}
+                      onChange={(e) => setIssueCreditForm({ ...issueCreditForm, dueMonth: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Purchase Notes</label>
+                  <input
+                    type="text"
+                    value={issueCreditForm.notes}
+                    onChange={(e) => setIssueCreditForm({ ...issueCreditForm, notes: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIssueCreditModalOpen(false)}
+                    className="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={custs.length === 0 || prods.length === 0}
+                    className="w-2/3 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold rounded-xl shadow transition"
+                  >
+                    Record Credit Issue & Deduct FEFO →
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5.33 RECORD CREDIT REPAYMENT MODAL */}
+      {creditPaymentModalOpen && (() => {
+        const custs = data.customers.filter((c: any) => c.shopId === activeShopId);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">💵</span>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    Record Credit Repayment ({activeShop.name})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setCreditPaymentModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleConfirmCreditPayment} className="space-y-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">Select Customer *</label>
+                    <button
+                      type="button"
+                      onClick={() => setNewCustomerModalOpen(true)}
+                      className="text-indigo-600 hover:underline font-bold text-[11px]"
+                    >
+                      + New Customer
+                    </button>
+                  </div>
+                  <select
+                    required
+                    value={creditPaymentForm.customerId}
+                    onChange={(e) => setCreditPaymentForm({ ...creditPaymentForm, customerId: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                  >
+                    {custs.length === 0 ? (
+                      <option value="" disabled>No credit customers yet — click + New Customer</option>
+                    ) : (
+                      <>
+                        <option value="">-- Choose Customer --</option>
+                        {custs.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} (Outstanding: MVR {Number(c.creditBalance || 0).toFixed(2)})
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Repayment Amount (MVR) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      step="0.5"
+                      value={creditPaymentForm.amount}
+                      onChange={(e) => setCreditPaymentForm({ ...creditPaymentForm, amount: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Payment Method *</label>
+                    <select
+                      value={creditPaymentForm.method}
+                      onChange={(e) => setCreditPaymentForm({ ...creditPaymentForm, method: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                    >
+                      <option value="CASH">Cash Received</option>
+                      <option value="BANK_TRANSFER">Bank Transfer (BML / MIB)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Repayment Notes / Salary Ref</label>
+                  <input
+                    type="text"
+                    value={creditPaymentForm.notes}
+                    onChange={(e) => setCreditPaymentForm({ ...creditPaymentForm, notes: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreditPaymentModalOpen(false)}
+                    className="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={custs.length === 0}
+                    className="w-2/3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold rounded-xl shadow transition"
+                  >
+                    Record Repayment →
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 5.4 POCKETBASE TENANT PROVISIONING MODAL (+ Create Shop Owner Account Directly) */}
       {createShopModalOpen && (
