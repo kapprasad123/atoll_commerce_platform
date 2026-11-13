@@ -12,12 +12,28 @@ export type PortalType = 'CUSTOMER' | 'SHOP_OWNER' | 'MASTER_ADMIN';
 export type CurrencyCode = 'MVR' | 'USD' | 'INR' | 'EUR' | 'GBP';
 export type StaffRole = 'SHOP_OWNER' | 'MANAGER' | 'CASHIER' | 'INVENTORY_STAFF' | 'DELIVERY_STAFF';
 
+export interface AuthUser {
+  role: 'MASTER_ADMIN' | 'SHOP_OWNER';
+  name: string;
+  email: string;
+  shopId?: string;
+  shopName?: string;
+}
+
 export default function App() {
   const [data, setData] = useState<any>(initialData);
   const [portal, setPortal] = useState<PortalType>('CUSTOMER');
   const [activeShopId, setActiveShopId] = useState<string>('shop-1');
   const [activeStaffRole, setActiveStaffRole] = useState<StaffRole>('SHOP_OWNER');
   const [currency, setCurrency] = useState<CurrencyCode>('MVR');
+
+  // Authentication & Session Protection State
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
+  const [loginTargetRole, setLoginTargetRole] = useState<'MASTER_ADMIN' | 'SHOP_OWNER'>('SHOP_OWNER');
+  const [loginEmail, setLoginEmail] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [shopTab, setShopTab] = useState<string>('DASHBOARD');
   const [adminTab, setAdminTab] = useState<string>('SHOPS');
 
@@ -199,6 +215,91 @@ export default function App() {
     showToast(`Items issued on credit (Local)!`);
   };
 
+  // Authentication Handlers
+  const handleLoginSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLoginError(null);
+    const email = loginEmail.trim().toLowerCase();
+    const pw = loginPassword.trim();
+
+    if (loginTargetRole === 'MASTER_ADMIN') {
+      if (email === 'admin@atollhub.mv' && pw === 'Admin@Atoll2026!') {
+        const user: AuthUser = {
+          role: 'MASTER_ADMIN',
+          name: 'Ibrahim Rasheed (Master Admin)',
+          email: 'admin@atollhub.mv'
+        };
+        setCurrentUser(user);
+        setPortal('MASTER_ADMIN');
+        setLoginModalOpen(false);
+        setLoginEmail('');
+        setLoginPassword('');
+        showToast('🛡️ Authenticated as Master Administrator');
+        return;
+      }
+      setLoginError('Invalid Master Admin credentials. Use admin@atollhub.mv / Admin@Atoll2026!');
+      return;
+    }
+
+    // Shop Owner Authentication
+    const shop = data.shops.find((s: any) =>
+      s.ownerEmail?.toLowerCase() === email ||
+      s.slug?.toLowerCase() === email ||
+      s.id?.toLowerCase() === email
+    );
+
+    if (!shop) {
+      setLoginError('No registered merchant shop found under this owner email/username.');
+      return;
+    }
+
+    const expectedPw = shop.ownerPassword || 'Owner@Shop2026!';
+    if (pw !== expectedPw) {
+      setLoginError(`Incorrect password for ${shop.name}. (If password was reset in Master Admin, use the newly issued password)`);
+      return;
+    }
+
+    const user: AuthUser = {
+      role: 'SHOP_OWNER',
+      name: shop.ownerName,
+      email: shop.ownerEmail,
+      shopId: shop.id,
+      shopName: shop.name
+    };
+    setCurrentUser(user);
+    setActiveShopId(shop.id);
+    setPortal('SHOP_OWNER');
+    setLoginModalOpen(false);
+    setLoginEmail('');
+    setLoginPassword('');
+    showToast(`🏪 Logged in as ${shop.ownerName}. Tenant locked to ${shop.name}.`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setPortal('CUSTOMER');
+    showToast('Logged out successfully. Returned to Customer Marketplace.');
+  };
+
+  const openLoginFor = (role: 'MASTER_ADMIN' | 'SHOP_OWNER', defaultEmail = '', defaultPw = '') => {
+    setLoginTargetRole(role);
+    setLoginEmail(defaultEmail);
+    setLoginPassword(defaultPw);
+    setLoginError(null);
+    setLoginModalOpen(true);
+  };
+
+  const handleResetShopPassword = (shopId: string) => {
+    const shop = data.shops.find((s: any) => s.id === shopId);
+    if (!shop) return;
+    const tempPw = `Pass-${Math.floor(1000 + Math.random() * 9000)}`;
+    setData((prev: any) => ({
+      ...prev,
+      shops: prev.shops.map((s: any) => s.id === shopId ? { ...s, ownerPassword: tempPw } : s)
+    }));
+    showToast(`Generated new password for ${shop.name}: ${tempPw}`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* 1. TOP NAV / PORTAL SWITCHER BAR */}
@@ -209,44 +310,109 @@ export default function App() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               ATOLLHUB LIVE ENGINE
             </span>
-            <span className="text-slate-400">Portal:</span>
-            <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-              <button
-                onClick={() => setPortal('CUSTOMER')}
-                className={`px-3 py-1 rounded-md font-semibold transition ${portal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-              >
-                🛍️ Marketplace
-              </button>
-              <button
-                onClick={() => setPortal('SHOP_OWNER')}
-                className={`px-3 py-1 rounded-md font-semibold transition ${portal === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-              >
-                🏪 Shop Owner / POS
-              </button>
-              <button
-                onClick={() => setPortal('MASTER_ADMIN')}
-                className={`px-3 py-1 rounded-md font-semibold transition ${portal === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-              >
-                🛡️ Master Admin
-              </button>
-            </div>
+            {!currentUser ? (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Portal:</span>
+                <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                  <button
+                    onClick={() => setPortal('CUSTOMER')}
+                    className="px-3 py-1 rounded-md font-semibold transition bg-indigo-600 text-white shadow"
+                  >
+                    🛍️ Marketplace
+                  </button>
+                  <button
+                    onClick={() => openLoginFor('SHOP_OWNER')}
+                    className="px-3 py-1 rounded-md font-semibold transition text-slate-400 hover:text-amber-300 flex items-center gap-1"
+                    title="Authentication Required"
+                  >
+                    <span>🔒 Shop Owner / POS</span>
+                  </button>
+                  <button
+                    onClick={() => openLoginFor('MASTER_ADMIN')}
+                    className="px-3 py-1 rounded-md font-semibold transition text-slate-400 hover:text-amber-300 flex items-center gap-1"
+                    title="Authentication Required"
+                  >
+                    <span>🔒 Master Admin</span>
+                  </button>
+                </div>
+                <button
+                  onClick={() => openLoginFor('SHOP_OWNER')}
+                  className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition"
+                >
+                  🔐 Account / Login
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Active User Role Badge */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/80 border border-indigo-700/60 text-white">
+                  {currentUser.role === 'MASTER_ADMIN' ? (
+                    <span className="text-rose-400 font-extrabold flex items-center gap-1">
+                      🛡️ <span className="text-slate-200">{currentUser.name}</span>
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 font-extrabold flex items-center gap-1">
+                      🏪 <span className="text-slate-200">{currentUser.name}</span>
+                      <span className="text-slate-400 font-normal">({currentUser.shopName})</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Portal Navigation for Authenticated User */}
+                <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                  <button
+                    onClick={() => setPortal('CUSTOMER')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition ${portal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    🛍️ Marketplace
+                  </button>
+                  {currentUser.role === 'MASTER_ADMIN' ? (
+                    <button
+                      onClick={() => setPortal('MASTER_ADMIN')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition ${portal === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      🛡️ Master Admin
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setPortal('SHOP_OWNER')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition ${portal === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      🏪 Shop Owner / POS
+                    </button>
+                  )}
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white font-bold transition flex items-center gap-1"
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {portal === 'SHOP_OWNER' && (
               <div className="flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
                 <span className="text-slate-400">Tenant:</span>
-                <select
-                  value={activeShopId}
-                  onChange={(e) => setActiveShopId(e.target.value)}
-                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
-                >
-                  {data.shops.map((s: any) => (
-                    <option key={s.id} value={s.id} className="bg-slate-900 text-white">
-                      {s.name} ({s.status})
-                    </option>
-                  ))}
-                </select>
+                {currentUser?.role === 'SHOP_OWNER' ? (
+                  <span className="text-white font-bold px-1">{activeShop.name} (Locked)</span>
+                ) : (
+                  <select
+                    value={activeShopId}
+                    onChange={(e) => setActiveShopId(e.target.value)}
+                    className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                  >
+                    {data.shops.map((s: any) => (
+                      <option key={s.id} value={s.id} className="bg-slate-900 text-white">
+                        {s.name} ({s.status})
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <span className="text-slate-600">|</span>
                 <span className="text-slate-400">Role:</span>
                 <select
@@ -956,6 +1122,13 @@ export default function App() {
                                   Suspend Shop
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleResetShopPassword(s.id)}
+                                className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-lg text-[11px] transition shadow-xs"
+                                title="Reset Owner Password"
+                              >
+                                Reset PW
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1165,6 +1338,156 @@ export default function App() {
               >
                 Reject Slip
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5.5 AUTHENTICATION / LOGIN MODAL */}
+      {loginModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔐</span>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  {loginTargetRole === 'MASTER_ADMIN' ? 'Master Admin Authentication' : 'Shop Owner / POS Login'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setLoginModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Role Switcher Tabs inside Modal */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginTargetRole('SHOP_OWNER');
+                  setLoginError(null);
+                }}
+                className={`py-2 rounded-lg transition ${loginTargetRole === 'SHOP_OWNER' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                🏪 Shop Owner / POS
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginTargetRole('MASTER_ADMIN');
+                  setLoginError(null);
+                }}
+                className={`py-2 rounded-lg transition ${loginTargetRole === 'MASTER_ADMIN' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                🛡️ Master Admin
+              </button>
+            </div>
+
+            {loginError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                ⚠️ {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleLoginSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Username / Email</label>
+                <input
+                  type="text"
+                  required
+                  placeholder={loginTargetRole === 'MASTER_ADMIN' ? 'admin@atollhub.mv' : 'owner@malefresh.mv'}
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 font-medium"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className={`w-full py-2.5 text-white font-extrabold rounded-xl transition shadow-md ${
+                    loginTargetRole === 'MASTER_ADMIN'
+                      ? 'bg-rose-600 hover:bg-rose-500'
+                      : 'bg-indigo-600 hover:bg-indigo-500'
+                  }`}
+                >
+                  Authenticate & Enter Portal →
+                </button>
+              </div>
+            </form>
+
+            {/* Quick Demo Credential Fillers */}
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quick Fill Demo Accounts:</div>
+              <div className="grid grid-cols-1 gap-1.5 text-[11px]">
+                {loginTargetRole === 'MASTER_ADMIN' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginEmail('admin@atollhub.mv');
+                      setLoginPassword('Admin@Atoll2026!');
+                    }}
+                    className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-left text-rose-900"
+                  >
+                    <div className="font-bold">🛡️ Master Admin: admin@atollhub.mv</div>
+                    <div className="text-slate-500 font-mono text-[10px]">Pass: Admin@Atoll2026!</div>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = data.shops.find((x: any) => x.id === 'shop-1');
+                        setLoginEmail('owner@malefresh.mv');
+                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
+                      }}
+                      className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left text-emerald-900"
+                    >
+                      <div className="font-bold">🏪 Shop 1: owner@malefresh.mv</div>
+                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-1')?.ownerPassword || 'Owner@Shop2026!'}</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = data.shops.find((x: any) => x.id === 'shop-2');
+                        setLoginEmail('owner@hulhumaletech.mv');
+                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
+                      }}
+                      className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left text-indigo-900"
+                    >
+                      <div className="font-bold">🏪 Shop 2: owner@hulhumaletech.mv</div>
+                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-2')?.ownerPassword || 'Owner@Shop2026!'}</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = data.shops.find((x: any) => x.id === 'shop-3');
+                        setLoginEmail('owner@adduwellness.mv');
+                        setLoginPassword(s?.ownerPassword || 'Owner@Shop2026!');
+                      }}
+                      className="p-2 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 text-left text-teal-900"
+                    >
+                      <div className="font-bold">🏪 Shop 3: owner@adduwellness.mv</div>
+                      <div className="text-slate-500 font-mono text-[10px]">Pass: {data.shops.find((x: any) => x.id === 'shop-3')?.ownerPassword || 'Owner@Shop2026!'}</div>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

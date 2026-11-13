@@ -43,11 +43,8 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           LIVE MULTI-TENANT ENGINE
         </span>
-        <span class="text-slate-300 hidden sm:inline">Switch Role / Portal:</span>
-        <div class="flex flex-wrap items-center gap-1" id="portal-switcher-buttons">
-          <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-medium transition">🛍️ Customer Marketplace</button>
-          <button type="button" data-action="switch-portal" data-portal="SHOP_OWNER" class="px-2.5 py-1 rounded font-medium transition">🏪 Shop Owner / POS</button>
-          <button type="button" data-action="switch-portal" data-portal="MASTER_ADMIN" class="px-2.5 py-1 rounded font-medium transition">🛡️ Master Admin</button>
+        <div class="flex flex-wrap items-center gap-1.5" id="header-auth-container">
+          <!-- Populated dynamically based on session authentication -->
         </div>
       </div>
 
@@ -81,7 +78,7 @@
         </div>
 
         <!-- Auth / Login Modal Trigger -->
-        <button type="button" id="btn-open-auth-modal" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition">
+        <button type="button" id="btn-open-auth-modal" data-action="open-login-modal" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition flex items-center gap-1">
           🔐 Account / Login
         </button>
 
@@ -208,7 +205,13 @@
 
     function createInitialState() {
       return {
-        currentPortal: 'CUSTOMER', // 'CUSTOMER' | 'SHOP_OWNER' | 'MASTER_ADMIN'
+        currentPortal: 'CUSTOMER', // Default every visitor to Customer Marketplace view on page load
+        currentUser: null, // null = unauthenticated public visitor; { role: 'MASTER_ADMIN'|'SHOP_OWNER', name, email, shopId? }
+        adminCredentials: {
+          email: 'admin@atollhub.mv',
+          password: 'Admin@Atoll2026!',
+          name: 'Ibrahim Rasheed (Master Admin)'
+        },
         activeShopId: 'shop-1',
         activeStaffRole: 'SHOP_OWNER', // 'SHOP_OWNER' | 'MANAGER' | 'CASHIER' | 'INVENTORY_STAFF' | 'DELIVERY_STAFF'
         displayCurrency: 'MVR',
@@ -274,7 +277,7 @@
             name: 'Malé Fresh Mart & Superstore',
             slug: 'male-fresh-mart',
             ownerName: 'Hassan Zareer',
-            ownerEmail: 'owner@malefresh.mv',
+            ownerEmail: 'owner@malefresh.mv', ownerPassword: 'Owner@Shop2026!',
             phone: '+960 778-2410',
             whatsapp: '9607782410',
             viber: '9607782410',
@@ -301,7 +304,7 @@
             name: 'Hulhumalé Tech & Home Hub',
             slug: 'hulhumale-tech-hub',
             ownerName: 'Mariyam Niuma',
-            ownerEmail: 'owner@hulhumaletech.mv',
+            ownerEmail: 'owner@hulhumaletech.mv', ownerPassword: 'Owner@Shop2026!',
             phone: '+960 790-5521',
             whatsapp: '9607905521',
             viber: '9607905521',
@@ -328,7 +331,7 @@
             name: 'Addu Island Pharmacy & Wellness',
             slug: 'addu-wellness-pharmacy',
             ownerName: 'Dr. Ali Shareef',
-            ownerEmail: 'owner@adduwellness.mv',
+            ownerEmail: 'owner@adduwellness.mv', ownerPassword: 'Owner@Shop2026!',
             phone: '+960 779-8833',
             whatsapp: '9607798833',
             viber: '9607798833',
@@ -355,7 +358,7 @@
             name: 'Baa Atoll Coral Provision Store',
             slug: 'baa-coral-provisions',
             ownerName: 'Fathimath Shifana',
-            ownerEmail: 'owner@baacoralmart.mv',
+            ownerEmail: 'owner@baacoralmart.mv', ownerPassword: 'Owner@Shop2026!',
             phone: '+960 765-1199',
             whatsapp: '9607651199',
             viber: '9607651199',
@@ -1431,7 +1434,176 @@
       activeCharts = [];
     }
 
-    function syncHeaderChrome() {
+        function openLoginModal(targetPortal = 'SHOP_OWNER') {
+      const activeRole = targetPortal === 'MASTER_ADMIN' ? 'MASTER_ADMIN' : 'SHOP_OWNER';
+      const defaultEmail = activeRole === 'MASTER_ADMIN' ? 'admin@atollhub.mv' : 'owner@malefresh.mv';
+      const defaultPass = activeRole === 'MASTER_ADMIN' ? (state.adminCredentials.password || 'Admin@Atoll2026!') : (state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!');
+
+      const html = `
+        <div class="space-y-4 text-xs" id="login-modal-root">
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <strong>Portal Authentication Required:</strong> The <strong>Master Admin Panel</strong> and <strong>Shop Owner / POS Management</strong> are strictly protected. Please sign in below to access management portals. Visitors without credentials browse the public Customer Marketplace.
+          </div>
+
+          <!-- Role Tabs -->
+          <div class="flex rounded-xl bg-slate-200 dark:bg-slate-800 p-1 gap-1">
+            <button type="button" id="login-tab-shop-owner" class="flex-1 py-2 rounded-lg font-bold transition text-center ${activeRole === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 dark:text-slate-400 hover:text-white'}">
+              🏪 Shop Owner / POS
+            </button>
+            <button type="button" id="login-tab-master-admin" class="flex-1 py-2 rounded-lg font-bold transition text-center ${activeRole === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 dark:text-slate-400 hover:text-white'}">
+              🛡️ Master Administrator
+            </button>
+          </div>
+
+          <div id="login-error-box" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-semibold"></div>
+
+          <form id="portal-login-form" class="space-y-3" onsubmit="return false;">
+            <input type="hidden" id="login-target-role" value="${activeRole}" />
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1" id="login-email-label">
+                ${activeRole === 'MASTER_ADMIN' ? 'Master Admin Email / Username' : 'Shop Owner Email / Username'}
+              </label>
+              <input type="email" id="login-email" required
+                value="${defaultEmail}"
+                class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Password</label>
+              <input type="password" id="login-password" required
+                value="${defaultPass}"
+                class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" id="btn-submit-portal-login" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow transition">
+                Authenticate &amp; Open Portal →
+              </button>
+            </div>
+          </form>
+
+          <!-- Valid Credentials Reference Card -->
+          <div class="border-t border-slate-200 dark:border-slate-800 pt-3 space-y-2">
+            <span class="font-bold text-[11px] text-slate-500 uppercase tracking-wider">Valid Configured Credentials:</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div class="font-bold text-rose-600">🛡️ Master Admin</div>
+                <div class="font-mono text-slate-600 dark:text-slate-300">admin@atollhub.mv</div>
+                <div class="font-mono text-slate-500">PW: ${state.adminCredentials.password || 'Admin@Atoll2026!'}</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div class="font-bold text-emerald-600">🏪 Shop Owner 1 (Malé Fresh)</div>
+                <div class="font-mono text-slate-600 dark:text-slate-300">owner@malefresh.mv</div>
+                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!'}</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div class="font-bold text-emerald-600">🏪 Shop Owner 2 (Hulhumalé Tech)</div>
+                <div class="font-mono text-slate-600 dark:text-slate-300">owner@hulhumaletech.mv</div>
+                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-2')?.ownerPassword || 'Owner@Shop2026!'}</div>
+              </div>
+              <div class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div class="font-bold text-emerald-600">🏪 Shop Owner 3 (Addu Wellness)</div>
+                <div class="font-mono text-slate-600 dark:text-slate-300">owner@adduwellness.mv</div>
+                <div class="font-mono text-slate-500">PW: ${state.shops.find(s=>s.id==='shop-3')?.ownerPassword || 'Owner@Shop2026!'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      openModal('🔐 Portal Authentication Sign-In', html);
+
+      setTimeout(() => {
+        const tabShop = document.getElementById('login-tab-shop-owner');
+        const tabAdmin = document.getElementById('login-tab-master-admin');
+        const targetRoleInput = document.getElementById('login-target-role');
+        const emailInput = document.getElementById('login-email');
+        const emailLabel = document.getElementById('login-email-label');
+        const passInput = document.getElementById('login-password');
+        const errBox = document.getElementById('login-error-box');
+        const form = document.getElementById('portal-login-form');
+
+        if (tabShop && tabAdmin) {
+          tabShop.addEventListener('click', () => {
+            targetRoleInput.value = 'SHOP_OWNER';
+            tabShop.className = 'flex-1 py-2 rounded-lg font-bold transition text-center bg-indigo-600 text-white shadow';
+            tabAdmin.className = 'flex-1 py-2 rounded-lg font-bold transition text-center text-slate-600 dark:text-slate-400 hover:text-white';
+            emailLabel.textContent = 'Shop Owner Email / Username';
+            emailInput.value = 'owner@malefresh.mv';
+            passInput.value = state.shops.find(s=>s.id==='shop-1')?.ownerPassword || 'Owner@Shop2026!';
+            errBox.classList.add('hidden');
+          });
+
+          tabAdmin.addEventListener('click', () => {
+            targetRoleInput.value = 'MASTER_ADMIN';
+            tabAdmin.className = 'flex-1 py-2 rounded-lg font-bold transition text-center bg-indigo-600 text-white shadow';
+            tabShop.className = 'flex-1 py-2 rounded-lg font-bold transition text-center text-slate-600 dark:text-slate-400 hover:text-white';
+            emailLabel.textContent = 'Master Admin Email / Username';
+            emailInput.value = 'admin@atollhub.mv';
+            passInput.value = state.adminCredentials.password || 'Admin@Atoll2026!';
+            errBox.classList.add('hidden');
+          });
+        }
+
+        if (form) {
+          form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const role = targetRoleInput.value;
+            const email = (emailInput.value || '').trim();
+            const pass = (passInput.value || '').trim();
+
+            if (role === 'MASTER_ADMIN') {
+              const validEmail = (state.adminCredentials.email || 'admin@atollhub.mv').toLowerCase();
+              const validPass = state.adminCredentials.password || 'Admin@Atoll2026!';
+              if (email.toLowerCase() === validEmail && pass === validPass) {
+                state.currentUser = {
+                  role: 'MASTER_ADMIN',
+                  name: state.adminCredentials.name || 'Ibrahim Rasheed (Master Admin)',
+                  email: validEmail
+                };
+                state.currentPortal = 'MASTER_ADMIN';
+                closeModal();
+                saveState();
+                renderApp();
+                showToast('Authenticated as Master Administrator.', 'success');
+              } else {
+                errBox.textContent = 'Invalid Master Admin credentials. Please check email and password.';
+                errBox.classList.remove('hidden');
+              }
+            } else {
+              const matchedShop = state.shops.find(s => s.ownerEmail.toLowerCase() === email.toLowerCase());
+              if (!matchedShop) {
+                errBox.textContent = `No shop owner registered with email "${email}".`;
+                errBox.classList.remove('hidden');
+                return;
+              }
+              const validPass = matchedShop.ownerPassword || 'Owner@Shop2026!';
+              if (pass !== validPass) {
+                errBox.textContent = `Incorrect password for ${matchedShop.ownerName} (${matchedShop.name}).`;
+                errBox.classList.remove('hidden');
+                return;
+              }
+              // Lock strictly to their assigned shop!
+              state.currentUser = {
+                role: 'SHOP_OWNER',
+                name: matchedShop.ownerName,
+                email: matchedShop.ownerEmail,
+                shopId: matchedShop.id
+              };
+              state.activeShopId = matchedShop.id;
+              state.currentPortal = 'SHOP_OWNER';
+              closeModal();
+              saveState();
+              renderApp();
+              showToast(`Authenticated as ${matchedShop.ownerName} (${matchedShop.name}). Locked to assigned shop.`, 'success');
+            }
+          });
+        }
+      }, 50);
+    }
+
+function syncHeaderChrome() {
       // Dark mode class
       if (state.darkMode) {
         document.documentElement.classList.add('dark');
@@ -1439,15 +1611,53 @@
         document.documentElement.classList.remove('dark');
       }
 
-      // Portal buttons highlight
-      document.querySelectorAll('[data-action="switch-portal"]').forEach(btn => {
-        const p = btn.getAttribute('data-portal');
-        if (p === state.currentPortal) {
-          btn.className = 'px-2.5 py-1 rounded font-bold bg-indigo-600 text-white shadow transition';
-        } else {
-          btn.className = 'px-2.5 py-1 rounded font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition';
+      // Dynamic Header Authentication Container
+      const authContainer = document.getElementById('header-auth-container');
+      if (authContainer) {
+        if (!state.currentUser) {
+          authContainer.innerHTML = `
+            <span class="text-slate-400 hidden sm:inline">Active Portal:</span>
+            <span class="px-2.5 py-1 rounded font-bold bg-indigo-600 text-white shadow">🛍️ Customer Marketplace</span>
+            <button type="button" data-action="require-login" data-target="SHOP_OWNER" class="px-2.5 py-1 rounded font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1" title="Protected: Requires Shop Owner authentication">
+              🔒 Shop Owner / POS
+            </button>
+            <button type="button" data-action="require-login" data-target="MASTER_ADMIN" class="px-2.5 py-1 rounded font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1" title="Protected: Requires Master Admin authentication">
+              🔒 Master Admin
+            </button>
+          `;
+        } else if (state.currentUser.role === 'MASTER_ADMIN') {
+          authContainer.innerHTML = `
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-900/60 text-rose-200 border border-rose-700/50 font-bold">
+              🛡️ ${state.currentUser.name}
+            </span>
+            <button type="button" data-action="switch-portal" data-portal="MASTER_ADMIN" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🛡️ Admin Panel
+            </button>
+            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🛍️ Marketplace
+            </button>
+            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 shadow-xs" title="Sign out and return to Marketplace">
+              🚪 Logout
+            </button>
+          `;
+        } else if (state.currentUser.role === 'SHOP_OWNER') {
+          const s = state.shops.find(x => x.id === state.currentUser.shopId) || state.shops[0];
+          authContainer.innerHTML = `
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-900/60 text-emerald-200 border border-emerald-700/50 font-bold">
+              🏪 ${state.currentUser.name} (${s.name})
+            </span>
+            <button type="button" data-action="switch-portal" data-portal="SHOP_OWNER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🏪 Shop / POS
+            </button>
+            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🛍️ Marketplace
+            </button>
+            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 shadow-xs" title="Sign out and return to Marketplace">
+              🚪 Logout
+            </button>
+          `;
         }
-      });
+      }
 
       // Portal badge
       const badge = document.getElementById('header-portal-badge');
@@ -1477,12 +1687,24 @@
         }
       }
 
+      // Strict Shop Owner Tenant Lock
+      if (state.currentUser && state.currentUser.role === 'SHOP_OWNER' && state.currentUser.shopId) {
+        state.activeShopId = state.currentUser.shopId;
+      }
+
       // Populate shop dropdown
       const shopSelect = document.getElementById('active-shop-select');
       if (shopSelect) {
-        shopSelect.innerHTML = state.shops.map(s =>
-          `<option value="${s.id}" class="bg-slate-900 text-white" ${s.id === state.activeShopId ? 'selected' : ''}>${s.name} [${s.status}] (${s.defaultCurrency})</option>`
-        ).join('');
+        if (state.currentUser && state.currentUser.role === 'SHOP_OWNER') {
+          const s = state.shops.find(x => x.id === state.currentUser.shopId) || state.shops[0];
+          shopSelect.innerHTML = `<option value="${s.id}" class="bg-slate-900 text-white" selected>${s.name} [${s.status}] (LOCKED)</option>`;
+          shopSelect.disabled = true;
+        } else {
+          shopSelect.disabled = false;
+          shopSelect.innerHTML = state.shops.map(s =>
+            `<option value="${s.id}" class="bg-slate-900 text-white" ${s.id === state.activeShopId ? 'selected' : ''}>${s.name} [${s.status}] (${s.defaultCurrency})</option>`
+          ).join('');
+        }
       }
 
       // Staff role select
@@ -3290,6 +3512,20 @@
     // 8. MASTER RENDER ROUTER
     // ============================================================================
     function renderApp() {
+      // Security Enforcement: Master Admin & Shop Owner portals strictly require authentication
+      if (state.currentPortal === 'MASTER_ADMIN' && (!state.currentUser || state.currentUser.role !== 'MASTER_ADMIN')) {
+        state.currentPortal = 'CUSTOMER';
+        openLoginModal('MASTER_ADMIN');
+        return;
+      }
+      if (state.currentPortal === 'SHOP_OWNER' && (!state.currentUser || (state.currentUser.role !== 'SHOP_OWNER' && state.currentUser.role !== 'MASTER_ADMIN'))) {
+        state.currentPortal = 'CUSTOMER';
+        openLoginModal('SHOP_OWNER');
+        return;
+      }
+      if (state.currentUser && state.currentUser.role === 'SHOP_OWNER' && state.currentUser.shopId) {
+        state.activeShopId = state.currentUser.shopId;
+      }
       syncHeaderChrome();
       const container = document.getElementById('app-main-container');
       if (!container) return;
@@ -3610,44 +3846,23 @@
         return;
       }
 
-      if (btn.id === 'btn-open-auth-modal' || action === 'open-credentials-guide') {
-        openModal('🔐 Role Login & Demo Credentials Switcher', `
-          <div class="space-y-4 text-xs">
-            <p class="text-slate-600 dark:text-slate-300">Click any role account below to immediately authenticate and switch into that user's isolated session:</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button type="button" data-action="quick-login" data-portal="MASTER_ADMIN" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-rose-600">🛡️ Master Administrator</div>
-                <div class="font-semibold mt-0.5">admin@atollhub.mv / Admin@Atoll2026!</div>
-                <div class="text-[11px] text-slate-400">Full platform governance &amp; shop activation</div>
-              </button>
-              <button type="button" data-action="quick-login" data-portal="SHOP_OWNER" data-shop-id="shop-1" data-role="SHOP_OWNER" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-emerald-600">🏪 Shop Owner 1 (Malé Fresh Mart — MVR)</div>
-                <div class="font-semibold mt-0.5">owner@malefresh.mv / Owner@Shop2026!</div>
-                <div class="text-[11px] text-slate-400">Status: ACTIVE • Groceries, FEFO &amp; Credit Book</div>
-              </button>
-              <button type="button" data-action="quick-login" data-portal="SHOP_OWNER" data-shop-id="shop-2" data-role="SHOP_OWNER" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-indigo-600">🏪 Shop Owner 2 (Hulhumalé Tech Hub — USD)</div>
-                <div class="font-semibold mt-0.5">owner@hulhumaletech.mv / Owner@Shop2026!</div>
-                <div class="text-[11px] text-slate-400">Status: ACTIVE • Electronics &amp; USD Base Currency</div>
-              </button>
-              <button type="button" data-action="quick-login" data-portal="SHOP_OWNER" data-shop-id="shop-3" data-role="SHOP_OWNER" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-teal-600">🏪 Shop Owner 3 (Addu Wellness Pharmacy — MVR)</div>
-                <div class="font-semibold mt-0.5">owner@adduwellness.mv / Owner@Shop2026!</div>
-                <div class="text-[11px] text-slate-400">Status: ACTIVE • Pharmacy Batch &amp; Expiry Control</div>
-              </button>
-              <button type="button" data-action="quick-login" data-portal="SHOP_OWNER" data-shop-id="shop-4" data-role="SHOP_OWNER" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-rose-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-amber-600">🔒 Pending Shop (Baa Coral Provisions)</div>
-                <div class="font-semibold mt-0.5">owner@baacoralmart.mv / Owner@Shop2026!</div>
-                <div class="text-[11px] text-slate-400">Status: PENDING (Tests Master Admin Gate)</div>
-              </button>
-              <button type="button" data-action="quick-login" data-portal="CUSTOMER" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left bg-slate-50 dark:bg-slate-800">
-                <div class="font-extrabold text-sky-600">🛍️ Customer (Ahmed Mausoom)</div>
-                <div class="font-semibold mt-0.5">ahmed.mausoom@example.mv / Customer@2026!</div>
-                <div class="text-[11px] text-slate-400">Public Marketplace, Per-Shop Carts &amp; Order Tracking</div>
-              </button>
-            </div>
-          </div>
-        `);
+            if (action === 'require-login') {
+        const target = btn.getAttribute('data-target') || 'SHOP_OWNER';
+        openLoginModal(target);
+        return;
+      }
+
+      if (btn.id === 'btn-open-auth-modal' || action === 'open-login-modal' || action === 'open-credentials-guide') {
+        openLoginModal(state.currentPortal === 'MASTER_ADMIN' ? 'MASTER_ADMIN' : 'SHOP_OWNER');
+        return;
+      }
+
+      if (action === 'logout') {
+        state.currentUser = null;
+        state.currentPortal = 'CUSTOMER';
+        saveState();
+        renderApp();
+        showToast('Logged out successfully. Returned to Customer Marketplace.', 'info');
         return;
       }
 
@@ -4982,12 +5197,14 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
         const shop = state.shops.find(s => s.id === sid);
         if (!shop) return;
         const tempPw = 'AtollReset@' + Math.floor(1000 + Math.random() * 9000);
-        addAuditLog('MASTER_ADMIN', 'Ibrahim Rasheed', shop.id, 'OWNER_PASSWORD_RESET', `Reset password for ${shop.ownerName} (${shop.ownerEmail})`);
+        shop.ownerPassword = tempPw; // STORE UPDATED PASSWORD FOR LOGIN VALIDATION
+        addAuditLog('MASTER_ADMIN', 'Ibrahim Rasheed', shop.id, 'OWNER_PASSWORD_RESET', `Reset password for ${shop.ownerName} (${shop.ownerEmail}) to ${tempPw}`);
+        saveState();
         openModal(`🔑 Shop Owner Password Reset — ${shop.name}`, `
           <div class="space-y-3 text-xs">
-            <p>Generated temporary bcrypt-hashed password for <strong>${shop.ownerName}</strong> (${shop.ownerEmail}):</p>
-            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 font-mono font-extrabold text-base text-center text-indigo-600">${tempPw}</div>
-            <p class="text-slate-500">The shop owner will be required to rotate this password on their next sign-in. Event logged to platform audit trail.</p>
+            <p>Generated new login password for <strong>${shop.ownerName}</strong> (${shop.ownerEmail}):</p>
+            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 font-mono font-extrabold text-base text-center text-indigo-600 select-all">${tempPw}</div>
+            <p class="text-slate-500">This shop owner can now authenticate immediately using this new password in the Login Modal. Event saved to database and logged to audit trail.</p>
           </div>
         `);
         renderApp();

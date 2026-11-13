@@ -51,7 +51,7 @@
     {
       "code": "INR",
       "name": "Indian Rupee",
-      "symbol": "₹",
+      "symbol": "\u20b9",
       "rateToMVR": 0.1835,
       "isActive": true
     },
@@ -65,14 +65,14 @@
     {
       "code": "EUR",
       "name": "Euro",
-      "symbol": "€",
+      "symbol": "\u20ac",
       "rateToMVR": 16.8,
       "isActive": true
     },
     {
       "code": "GBP",
       "name": "British Pound",
-      "symbol": "£",
+      "symbol": "\u00a3",
       "rateToMVR": 19.65,
       "isActive": true
     }
@@ -81,59 +81,59 @@
     {
       "id": "cat-groceries",
       "name": "Groceries & Pantry",
-      "icon": "🌾",
+      "icon": "\ud83c\udf3e",
       "active": true
     },
     {
       "id": "cat-dairy",
       "name": "Dairy, Eggs & Chilled",
-      "icon": "🥛",
+      "icon": "\ud83e\udd5b",
       "active": true
     },
     {
       "id": "cat-beverages",
       "name": "Beverages & Cold Drinks",
-      "icon": "🧃",
+      "icon": "\ud83e\uddc3",
       "active": true
     },
     {
       "id": "cat-electronics",
       "name": "Electronics & Smart Home",
-      "icon": "🎧",
+      "icon": "\ud83c\udfa7",
       "active": true
     },
     {
       "id": "cat-appliances",
       "name": "Home & Kitchen Appliances",
-      "icon": "🔌",
+      "icon": "\ud83d\udd0c",
       "active": true
     },
     {
       "id": "cat-pharmacy",
       "name": "Pharmacy, Vitamins & First Aid",
-      "icon": "💊",
+      "icon": "\ud83d\udc8a",
       "active": true
     },
     {
       "id": "cat-personal",
       "name": "Skincare, Baby & Wellness",
-      "icon": "🧴",
+      "icon": "\ud83e\uddf4",
       "active": true
     }
   ],
   "shops": [
     {
       "id": "shop-1",
-      "name": "Malé Fresh Mart & Superstore",
+      "name": "Mal\u00e9 Fresh Mart & Superstore",
       "slug": "male-fresh-mart",
       "ownerName": "Hassan Zareer",
       "ownerEmail": "owner@malefresh.mv",
       "phone": "+960 778-2410",
       "whatsapp": "9607782410",
       "viber": "9607782410",
-      "island": "Malé (Henveiru)",
+      "island": "Mal\u00e9 (Henveiru)",
       "atoll": "Kaafu Atoll",
-      "address": "Majeedhee Magu, Henveiru, Malé 20026",
+      "address": "Majeedhee Magu, Henveiru, Mal\u00e9 20026",
       "status": "ACTIVE",
       "defaultCurrency": "MVR",
       "category": "Groceries & Pantry",
@@ -142,25 +142,26 @@
       "bankHolder": "MALE FRESH MART PVT LTD",
       "bankAccount": "7730000192837",
       "paymentInstructions": "Transfer exact confirmed total via BML Mobile Pay and upload receipt slip or share on WhatsApp/Viber.",
-      "openingHours": "Sat–Thu: 08:00–22:30 | Fri: 14:00–23:00",
+      "openingHours": "Sat\u2013Thu: 08:00\u201322:30 | Fri: 14:00\u201323:00",
       "vacationMode": false,
       "allowNegativeStock": false,
       "deliveryFee": 15,
       "invoicePrefix": "MFM",
-      "nextInvoiceNumber": 1042
+      "nextInvoiceNumber": 1042,
+      "ownerPassword": "Owner@Shop2026!"
     },
     {
       "id": "shop-2",
-      "name": "Hulhumalé Tech & Home Hub",
+      "name": "Hulhumal\u00e9 Tech & Home Hub",
       "slug": "hulhumale-tech-hub",
       "ownerName": "Mariyam Niuma",
       "ownerEmail": "owner@hulhumaletech.mv",
       "phone": "+960 790-5521",
       "whatsapp": "9607905521",
       "viber": "9607905521",
-      "island": "Hulhumalé Phase 1",
+      "island": "Hulhumal\u00e9 Phase 1",
       "atoll": "Kaafu Atoll",
-      "address": "Nirolhu Magu, Lot 11402, Hulhumalé",
+      "address": "Nirolhu Magu, Lot 11402, Hulhumal\u00e9",
       "status": "ACTIVE",
       "defaultCurrency": "USD",
       "category": "Electronics & Smart Home",
@@ -169,12 +170,13 @@
       "bankHolder": "HULHUMALE TECH HUB LLP",
       "bankAccount": "9010148002911",
       "paymentInstructions": "USD or MVR transfers accepted. Quote Order ID in transfer remarks and upload transfer screenshot.",
-      "openingHours": "Daily: 09:30–22:00",
+      "openingHours": "Daily: 09:30\u201322:00",
       "vacationMode": false,
       "allowNegativeStock": false,
       "deliveryFee": 2,
       "invoicePrefix": "HTH",
-      "nextInvoiceNumber": 2018
+      "nextInvoiceNumber": 2018,
+      "ownerPassword": "Owner@Shop2026!"
     },
     {
       "id": "shop-3",
@@ -196,12 +198,13 @@
       "bankHolder": "ADDU WELLNESS PHARMACY",
       "bankAccount": "7730000845120",
       "paymentInstructions": "Transfer to BML MVR account after pharmacist order confirmation. Upload slip for dispatch.",
-      "openingHours": "Daily: 08:00–23:00",
+      "openingHours": "Daily: 08:00\u201323:00",
       "vacationMode": false,
       "allowNegativeStock": false,
       "deliveryFee": 20,
       "invoicePrefix": "AWP",
-      "nextInvoiceNumber": 3085
+      "nextInvoiceNumber": 3085,
+      "ownerPassword": "Owner@Shop2026!"
     },
     {
       "id": "shop-4",
@@ -223,12 +226,13 @@
       "bankHolder": "BAA CORAL PROVISIONS",
       "bankAccount": "7730000991122",
       "paymentInstructions": "Awaiting Master Admin activation.",
-      "openingHours": "08:00–22:00",
+      "openingHours": "08:00\u201322:00",
       "vacationMode": false,
       "allowNegativeStock": false,
       "deliveryFee": 15,
       "invoicePrefix": "BCP",
-      "nextInvoiceNumber": 1001
+      "nextInvoiceNumber": 1001,
+      "ownerPassword": "Owner@Shop2026!"
     }
   ],
   "products": [
@@ -302,7 +306,7 @@
         "1L Single Carton",
         "Pack of 4 x 1L"
       ],
-      "description": "100% pure cow milk. Current earliest batch expires within 7 days — 20% clearance discount applied!"
+      "description": "100% pure cow milk. Current earliest batch expires within 7 days \u2014 20% clearance discount applied!"
     },
     {
       "id": "prod-3",
@@ -449,12 +453,12 @@
     {
       "id": "prod-7",
       "shopId": "shop-1",
-      "name": "Nescafé Gold Blend Instant Coffee 200g",
+      "name": "Nescaf\u00e9 Gold Blend Instant Coffee 200g",
       "sku": "MFM-BEV-007",
       "barcode": "7613035000077",
       "category": "Beverages & Cold Drinks",
       "subcategory": "Coffee & Tea",
-      "brand": "Nescafé",
+      "brand": "Nescaf\u00e9",
       "unit": "jar",
       "purchasePrice": 92,
       "sellingPrice": 125,
@@ -514,7 +518,7 @@
       "variants": [
         "500g Tub"
       ],
-      "description": "Batch B-YOG-EXP01 expired on 2026-10-29 — automatically quarantined by FEFO engine and hidden from customer sale."
+      "description": "Batch B-YOG-EXP01 expired on 2026-10-29 \u2014 automatically quarantined by FEFO engine and hidden from customer sale."
     },
     {
       "id": "prod-9",
@@ -906,7 +910,7 @@
         "AA 20-Pack",
         "AAA 20-Pack"
       ],
-      "description": "High-density alkaline cells. Batch B-DUR-1125 nearing shelf-life date — 20% clearance discount!"
+      "description": "High-density alkaline cells. Batch B-DUR-1125 nearing shelf-life date \u2014 20% clearance discount!"
     },
     {
       "id": "prod-20",
@@ -1046,7 +1050,7 @@
         "60 Tablets Bottle",
         "120 Tablets Value Bottle"
       ],
-      "description": "High-potency buffered Vitamin C. Batch B-VITC-1112 expires in 6 days — 25% clearance offer!"
+      "description": "High-potency buffered Vitamin C. Batch B-VITC-1112 expires in 6 days \u2014 25% clearance offer!"
     },
     {
       "id": "prod-24",
@@ -1864,10 +1868,10 @@
       "whatsapp": "9607774512",
       "viber": "9607774512",
       "email": "ahmed.mausoom@example.mv",
-      "address": "H. Coral Breeze, 3rd Floor, Majeedhee Magu, Malé",
-      "island": "Malé",
+      "address": "H. Coral Breeze, 3rd Floor, Majeedhee Magu, Mal\u00e9",
+      "island": "Mal\u00e9",
       "idRef": "A145892",
-      "employment": "Senior Technician — STELCO Malé",
+      "employment": "Senior Technician \u2014 STELCO Mal\u00e9",
       "salaryDate": "28th of every month",
       "creditLimit": 5000,
       "totalCreditBorrowed": 1100,
@@ -1887,10 +1891,10 @@
       "whatsapp": "9607913344",
       "viber": "9607913344",
       "email": "aminath.shifaza@example.mv",
-      "address": "M. Ocean View, Fareedhee Magu, Malé",
-      "island": "Malé",
+      "address": "M. Ocean View, Fareedhee Magu, Mal\u00e9",
+      "island": "Mal\u00e9",
       "idRef": "A210943",
-      "employment": "Teacher — Iskandhar School",
+      "employment": "Teacher \u2014 Iskandhar School",
       "salaryDate": "30th of every month",
       "creditLimit": 3500,
       "totalCreditBorrowed": 920,
@@ -1910,10 +1914,10 @@
       "whatsapp": "9607759900",
       "viber": "9607759900",
       "email": "moosa.latheef@example.mv",
-      "address": "Flat 44-02-04, Hiyaa Tower, Hulhumalé Phase 2",
-      "island": "Hulhumalé",
+      "address": "Flat 44-02-04, Hiyaa Tower, Hulhumal\u00e9 Phase 2",
+      "island": "Hulhumal\u00e9",
       "idRef": "A190331",
-      "employment": "Captain — Island Speedboat Charter",
+      "employment": "Captain \u2014 Island Speedboat Charter",
       "salaryDate": "1st of every month",
       "creditLimit": 500,
       "totalCreditBorrowed": 165,
@@ -1936,7 +1940,7 @@
       "address": "Finihiyaage, Link Road, S. Hithadhoo, Addu City",
       "island": "Addu City (Hithadhoo)",
       "idRef": "A254118",
-      "employment": "Admin Officer — Addu Equatorial Hospital",
+      "employment": "Admin Officer \u2014 Addu Equatorial Hospital",
       "salaryDate": "28th of every month",
       "creditLimit": 3000,
       "totalCreditBorrowed": 640,
@@ -1976,7 +1980,7 @@
       "customerId": "cust-ahmed",
       "customerName": "Ahmed Mausoom",
       "txType": "BORROW_ITEMS",
-      "productName": "February Additional Items (Almarai Milk, Nescafé Gold, Eggs)",
+      "productName": "February Additional Items (Almarai Milk, Nescaf\u00e9 Gold, Eggs)",
       "qty": 1,
       "unitPrice": 350,
       "totalAmount": 350,
@@ -1996,7 +2000,7 @@
       "customerId": "cust-ahmed",
       "customerName": "Ahmed Mausoom",
       "txType": "PAYMENT_RECEIVED",
-      "productName": "February Salary Received — Partial Credit Repayment (Cash)",
+      "productName": "February Salary Received \u2014 Partial Credit Repayment (Cash)",
       "qty": 1,
       "unitPrice": -500,
       "totalAmount": 500,
@@ -2088,7 +2092,7 @@
       "balanceBefore": 165,
       "balanceAfter": 100,
       "status": "SETTLED_PARTIAL",
-      "notes": "Paid $65 cash at Hulhumalé counter"
+      "notes": "Paid $65 cash at Hulhumal\u00e9 counter"
     },
     {
       "id": "cr-tx-5",
@@ -2135,15 +2139,15 @@
     {
       "id": "ORD-2026-901",
       "shopId": "shop-1",
-      "shopName": "Malé Fresh Mart & Superstore",
+      "shopName": "Mal\u00e9 Fresh Mart & Superstore",
       "customerName": "Ahmed Mausoom",
       "customerMobile": "+960 777-4512",
       "customerWhatsapp": "9607774512",
       "customerViber": "9607774512",
       "deliveryAddress": "H. Coral Breeze, 3rd Floor, Majeedhee Magu",
-      "islandCity": "Malé",
+      "islandCity": "Mal\u00e9",
       "addressInstructions": "Ring bell 3B near corner bakery",
-      "preferredDeliveryTime": "Evening 16:00 – 19:00",
+      "preferredDeliveryTime": "Evening 16:00 \u2013 19:00",
       "deliveryMethod": "Local Island Delivery",
       "orderNotes": "Please pack fresh milk in insulated bag.",
       "status": "PAYMENT_SUBMITTED",
@@ -2215,13 +2219,13 @@
     {
       "id": "ORD-2026-902",
       "shopId": "shop-1",
-      "shopName": "Malé Fresh Mart & Superstore",
+      "shopName": "Mal\u00e9 Fresh Mart & Superstore",
       "customerName": "Ibrahim Shihab",
       "customerMobile": "+960 778-9012",
       "customerWhatsapp": "9607789012",
       "customerViber": "9607789012",
       "deliveryAddress": "Jetty #5 Ferry Terminal (Speedboat to K. Maafushi)",
-      "islandCity": "K. Maafushi (via Malé Jetty)",
+      "islandCity": "K. Maafushi (via Mal\u00e9 Jetty)",
       "addressInstructions": "Hand over to Maafushi Express Boat Captain",
       "preferredDeliveryTime": "Afternoon 14:00 Boat",
       "deliveryMethod": "Speedboat / Ferry Jetty Drop",
@@ -2269,15 +2273,15 @@
     {
       "id": "ORD-2026-903",
       "shopId": "shop-2",
-      "shopName": "Hulhumalé Tech & Home Hub",
+      "shopName": "Hulhumal\u00e9 Tech & Home Hub",
       "customerName": "Moosa Latheef",
       "customerMobile": "+960 775-9900",
       "customerWhatsapp": "9607759900",
       "customerViber": "9607759900",
-      "deliveryAddress": "Flat 44-02-04, Hiyaa Tower, Hulhumalé Phase 2",
-      "islandCity": "Hulhumalé Phase 2",
+      "deliveryAddress": "Flat 44-02-04, Hiyaa Tower, Hulhumal\u00e9 Phase 2",
+      "islandCity": "Hulhumal\u00e9 Phase 2",
       "addressInstructions": "Call on arrival at Tower H12 lobby",
-      "preferredDeliveryTime": "20:00 – 22:00",
+      "preferredDeliveryTime": "20:00 \u2013 22:00",
       "deliveryMethod": "Local Island Delivery",
       "orderNotes": "Include official warranty card.",
       "status": "OUT_FOR_DELIVERY",
@@ -2344,7 +2348,7 @@
         {
           "status": "OUT_FOR_DELIVERY",
           "time": "2026-11-06 14:00",
-          "actor": "Hulhumalé Rider",
+          "actor": "Hulhumal\u00e9 Rider",
           "note": "Out for delivery to Phase 2"
         }
       ],
@@ -2361,7 +2365,7 @@
       "deliveryAddress": "Finihiyaage, Link Road, S. Hithadhoo",
       "islandCity": "Addu City (Hithadhoo)",
       "addressInstructions": "Next to Hithadhoo Youth Center",
-      "preferredDeliveryTime": "Morning 09:00 – 12:00",
+      "preferredDeliveryTime": "Morning 09:00 \u2013 12:00",
       "deliveryMethod": "Local Island Delivery",
       "orderNotes": "Urgent family wellness items.",
       "status": "DELIVERED",
@@ -2594,7 +2598,7 @@
       "id": "exp-4",
       "shopId": "shop-2",
       "category": "RENT",
-      "title": "Hulhumalé Showroom Rent Allocation",
+      "title": "Hulhumal\u00e9 Showroom Rent Allocation",
       "amount": 45,
       "currency": "USD",
       "date": "2026-11-01",
@@ -2674,7 +2678,7 @@
       "shopId": "shop-1",
       "supplierName": "Lily International Pvt Ltd",
       "productId": "prod-7",
-      "productName": "Nescafé Gold Blend Instant Coffee 200g",
+      "productName": "Nescaf\u00e9 Gold Blend Instant Coffee 200g",
       "orderedQty": 30,
       "unitCost": 92,
       "totalCost": 2760,
@@ -2823,7 +2827,7 @@
       "type": "LOW_STOCK",
       "severity": "INFO",
       "title": "Low Stock Reorder Alert",
-      "message": "Nescafé Gold Blend 200g (8 left, min 12) and Farm Fresh Brown Eggs (6 left, min 10) are below reorder level.",
+      "message": "Nescaf\u00e9 Gold Blend 200g (8 left, min 12) and Farm Fresh Brown Eggs (6 left, min 10) are below reorder level.",
       "time": "3 hours ago",
       "read": false
     },
@@ -2845,7 +2849,7 @@
       "type": "ORDER_UPDATE",
       "severity": "SUCCESS",
       "title": "Order ORD-2026-901 Confirmed by Shop",
-      "message": "Malé Fresh Mart confirmed your order total of MVR 274.60. Payment slip submitted and under review.",
+      "message": "Mal\u00e9 Fresh Mart confirmed your order total of MVR 274.60. Payment slip submitted and under review.",
       "time": "15 mins ago",
       "read": false
     }
@@ -2857,7 +2861,7 @@
       "actorName": "Ibrahim Rasheed",
       "shopId": "shop-1",
       "action": "SHOP_ACTIVATED",
-      "details": "Activated Malé Fresh Mart & Superstore account",
+      "details": "Activated Mal\u00e9 Fresh Mart & Superstore account",
       "time": "2026-08-10 09:00"
     },
     {
