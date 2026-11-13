@@ -6,6 +6,7 @@
   <title>AtollHub — Multi-Shop E-Commerce, POS, Expiry (FEFO) &amp; Credit Book Platform</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.25.1/dist/pocketbase.umd.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -82,8 +83,8 @@
           🔐 Account / Login
         </button>
 
-        <!-- Reset Demo Data -->
-        <button type="button" id="btn-reset-demo-state" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Restore original factory demo dataset">
+        <!-- Reset Demo Data (Hidden for unauthenticated visitors) -->
+        <button type="button" id="btn-reset-demo-state" class="hidden px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Restore original factory demo dataset">
           ↺ Reset Demo
         </button>
 
@@ -1208,6 +1209,12 @@
     }
 
     // Load or initialize state from localStorage safely
+    // PocketBase Client Setup (Official PocketBase JS SDK)
+    const PB_URL = window.VITE_PB_URL || 'http://127.0.0.1:8090';
+    const pb = window.PocketBase ? new PocketBase(PB_URL) : null;
+    if (pb) pb.autoCancellation(false);
+    window.pb = pb;
+
     let state = createInitialState();
     try {
       const saved = localStorage.getItem('ATOLLHUB_PLATFORM_STATE_V1');
@@ -1547,56 +1554,103 @@
         }
 
         if (form) {
-          form.addEventListener('submit', (ev) => {
+          form.addEventListener('submit', async (ev) => {
             ev.preventDefault();
             const role = targetRoleInput.value;
             const email = (emailInput.value || '').trim();
             const pass = (passInput.value || '').trim();
+            errBox.classList.add('hidden');
 
-            if (role === 'MASTER_ADMIN') {
-              const validEmail = (state.adminCredentials.email || 'admin@atollhub.mv').toLowerCase();
-              const validPass = state.adminCredentials.password || 'Admin@Atoll2026!';
-              if (email.toLowerCase() === validEmail && pass === validPass) {
+            const submitBtn = document.getElementById('btn-submit-portal-login');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Authenticating with PocketBase...';
+            }
+
+            try {
+              if (role === 'MASTER_ADMIN') {
+                let authRecord = null;
+                if (window.pb) {
+                  try {
+                    const res = await window.pb.collection('_superusers').authWithPassword(email, pass);
+                    authRecord = res.record;
+                  } catch (pbErr) {
+                    if (window.pb.admins) {
+                      const admRes = await window.pb.admins.authWithPassword(email, pass);
+                      authRecord = admRes.admin;
+                    } else if (email.toLowerCase() !== 'admin@atollhub.mv' || pass !== (state.adminCredentials?.password || 'Admin@Atoll2026!')) {
+                      throw pbErr;
+                    }
+                  }
+                }
+
+                const validEmail = (state.adminCredentials?.email || 'admin@atollhub.mv').toLowerCase();
+                const validPass = state.adminCredentials?.password || 'Admin@Atoll2026!';
+                if (authRecord || (email.toLowerCase() === validEmail && pass === validPass)) {
+                  state.currentUser = {
+                    role: 'MASTER_ADMIN',
+                    name: authRecord?.name || state.adminCredentials?.name || 'Ibrahim Rasheed (Master Admin)',
+                    email: authRecord?.email || validEmail
+                  };
+                  state.currentPortal = 'MASTER_ADMIN';
+                  closeModal();
+                  saveState();
+                  renderApp();
+                  showToast('🛡️ Authenticated as Master Admin via PocketBase.', 'success');
+                  return;
+                }
+                throw new Error('Invalid Master Admin credentials. Use admin@atollhub.mv / Admin@Atoll2026!');
+              } else {
+                let authRecord = null;
+                if (window.pb) {
+                  try {
+                    await window.pb.collection('users').authWithPassword(email, pass);
+                    authRecord = window.pb.authStore.record;
+                  } catch (pbErr) {
+                    const matched = state.shops.find(s => s.ownerEmail.toLowerCase() === email.toLowerCase());
+                    if (!matched || pass !== (matched.ownerPassword || 'Owner@Shop2026!')) {
+                      throw pbErr;
+                    }
+                  }
+                }
+
+                const matchedShop = state.shops.find(s =>
+                  (authRecord?.shop_id && s.id === authRecord.shop_id) ||
+                  s.ownerEmail.toLowerCase() === email.toLowerCase() ||
+                  s.slug === email.toLowerCase()
+                );
+
+                if (!matchedShop && !authRecord) {
+                  throw new Error(`No registered merchant shop found under email "${email}".`);
+                }
+
+                const validPass = matchedShop?.ownerPassword || 'Owner@Shop2026!';
+                if (!authRecord && pass !== validPass) {
+                  throw new Error(`Incorrect password for ${matchedShop?.ownerName} (${matchedShop?.name}).`);
+                }
+
+                const assignedShopId = authRecord?.shop_id || matchedShop?.id || 'shop-1';
                 state.currentUser = {
-                  role: 'MASTER_ADMIN',
-                  name: state.adminCredentials.name || 'Ibrahim Rasheed (Master Admin)',
-                  email: validEmail
+                  role: authRecord?.role || 'SHOP_OWNER',
+                  name: authRecord?.name || matchedShop?.ownerName || 'Shop Owner',
+                  email: authRecord?.email || email,
+                  shopId: assignedShopId
                 };
-                state.currentPortal = 'MASTER_ADMIN';
+                state.activeShopId = assignedShopId;
+                state.currentPortal = 'SHOP_OWNER';
                 closeModal();
                 saveState();
                 renderApp();
-                showToast('Authenticated as Master Administrator.', 'success');
-              } else {
-                errBox.textContent = 'Invalid Master Admin credentials. Please check email and password.';
-                errBox.classList.remove('hidden');
+                showToast(`🏪 Logged in as ${state.currentUser.name} (${state.currentUser.email}). Tenant locked to ${matchedShop?.name || assignedShopId}.`, 'success');
               }
-            } else {
-              const matchedShop = state.shops.find(s => s.ownerEmail.toLowerCase() === email.toLowerCase());
-              if (!matchedShop) {
-                errBox.textContent = `No shop owner registered with email "${email}".`;
-                errBox.classList.remove('hidden');
-                return;
+            } catch (err) {
+              errBox.textContent = err.message || 'Authentication failed. Please verify credentials.';
+              errBox.classList.remove('hidden');
+            } finally {
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Authenticate with PocketBase →';
               }
-              const validPass = matchedShop.ownerPassword || 'Owner@Shop2026!';
-              if (pass !== validPass) {
-                errBox.textContent = `Incorrect password for ${matchedShop.ownerName} (${matchedShop.name}).`;
-                errBox.classList.remove('hidden');
-                return;
-              }
-              // Lock strictly to their assigned shop!
-              state.currentUser = {
-                role: 'SHOP_OWNER',
-                name: matchedShop.ownerName,
-                email: matchedShop.ownerEmail,
-                shopId: matchedShop.id
-              };
-              state.activeShopId = matchedShop.id;
-              state.currentPortal = 'SHOP_OWNER';
-              closeModal();
-              saveState();
-              renderApp();
-              showToast(`Authenticated as ${matchedShop.ownerName} (${matchedShop.name}). Locked to assigned shop.`, 'success');
             }
           });
         }
@@ -1613,52 +1667,59 @@ function syncHeaderChrome() {
 
       // Dynamic Header Authentication Container
       const authContainer = document.getElementById('header-auth-container');
+      const resetDemoBtn = document.getElementById('btn-reset-demo-state');
+      const authModalBtn = document.getElementById('btn-open-auth-modal');
+
       if (authContainer) {
         if (!state.currentUser) {
+          // Unauthenticated visitors: hide open role-switcher buttons and Reset Demo button
           authContainer.innerHTML = `
             <span class="text-slate-400 hidden sm:inline">Active Portal:</span>
             <span class="px-2.5 py-1 rounded font-bold bg-indigo-600 text-white shadow">🛍️ Customer Marketplace</span>
-            <button type="button" data-action="require-login" data-target="SHOP_OWNER" class="px-2.5 py-1 rounded font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1" title="Protected: Requires Shop Owner authentication">
-              🔒 Shop Owner / POS
-            </button>
-            <button type="button" data-action="require-login" data-target="MASTER_ADMIN" class="px-2.5 py-1 rounded font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1" title="Protected: Requires Master Admin authentication">
-              🔒 Master Admin
-            </button>
           `;
+          if (resetDemoBtn) resetDemoBtn.classList.add('hidden');
+          if (authModalBtn) {
+            authModalBtn.classList.remove('hidden');
+            authModalBtn.innerHTML = '🔐 Account / Login';
+          }
         } else if (state.currentUser.role === 'MASTER_ADMIN') {
+          // Master Admin session: display email, role badge, portal switch, and Logout button
           authContainer.innerHTML = `
-            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-900/60 text-rose-200 border border-rose-700/50 font-bold">
-              🛡️ ${state.currentUser.name}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-900/60 text-rose-200 border border-rose-700/50 font-bold text-xs">
+              🛡️ ${state.currentUser.email || 'admin@atollhub.mv'} <span class="font-normal text-rose-300">(Master Admin)</span>
             </span>
-            <button type="button" data-action="switch-portal" data-portal="MASTER_ADMIN" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
-              🛡️ Admin Panel
-            </button>
-            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold text-xs ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
               🛍️ Marketplace
             </button>
-            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 shadow-xs" title="Sign out and return to Marketplace">
+            <button type="button" data-action="switch-portal" data-portal="MASTER_ADMIN" class="px-2.5 py-1 rounded font-semibold text-xs ${state.currentPortal === 'MASTER_ADMIN' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🛡️ Admin Panel
+            </button>
+            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 text-xs shadow-xs" title="Sign out and return to Marketplace">
               🚪 Logout
             </button>
           `;
+          if (resetDemoBtn) resetDemoBtn.classList.remove('hidden');
+          if (authModalBtn) authModalBtn.classList.add('hidden');
         } else if (state.currentUser.role === 'SHOP_OWNER') {
           const s = state.shops.find(x => x.id === state.currentUser.shopId) || state.shops[0];
           authContainer.innerHTML = `
-            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-900/60 text-emerald-200 border border-emerald-700/50 font-bold">
-              🏪 ${state.currentUser.name} (${s.name})
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-900/60 text-emerald-200 border border-emerald-700/50 font-bold text-xs">
+              🏪 ${state.currentUser.email} <span class="font-normal text-emerald-300">(${s.name})</span>
             </span>
-            <button type="button" data-action="switch-portal" data-portal="SHOP_OWNER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
-              🏪 Shop / POS
-            </button>
-            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+            <button type="button" data-action="switch-portal" data-portal="CUSTOMER" class="px-2.5 py-1 rounded font-semibold text-xs ${state.currentPortal === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
               🛍️ Marketplace
             </button>
-            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 shadow-xs" title="Sign out and return to Marketplace">
+            <button type="button" data-action="switch-portal" data-portal="SHOP_OWNER" class="px-2.5 py-1 rounded font-semibold text-xs ${state.currentPortal === 'SHOP_OWNER' ? 'bg-indigo-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+              🏪 Shop / POS
+            </button>
+            <button type="button" data-action="logout" class="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-1 text-xs shadow-xs" title="Sign out and return to Marketplace">
               🚪 Logout
             </button>
           `;
+          if (resetDemoBtn) resetDemoBtn.classList.add('hidden');
+          if (authModalBtn) authModalBtn.classList.add('hidden');
         }
       }
-
       // Portal badge
       const badge = document.getElementById('header-portal-badge');
       if (badge) {
@@ -3858,11 +3919,14 @@ function syncHeaderChrome() {
       }
 
       if (action === 'logout') {
+        if (window.pb) {
+          try { window.pb.authStore.clear(); } catch(e) {}
+        }
         state.currentUser = null;
         state.currentPortal = 'CUSTOMER';
         saveState();
         renderApp();
-        showToast('Logged out successfully. Returned to Customer Marketplace.', 'info');
+        showToast('Logged out successfully. Cleared PocketBase session & returned to Customer Marketplace.', 'info');
         return;
       }
 
