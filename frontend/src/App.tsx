@@ -1631,17 +1631,29 @@ export default function App() {
                               )}
                               <button
                                 onClick={() => handleOpenEditShop(s)}
-                                className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition shadow-xs flex items-center gap-1"
+                                className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition shadow-xs inline-flex items-center gap-1"
                                 title="Edit Shop Details"
                               >
                                 ✏️ Edit
                               </button>
                               <button
                                 onClick={() => handleResetShopPassword(s.id)}
-                                className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-lg text-[11px] transition shadow-xs"
+                                className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-lg text-[11px] transition shadow-xs inline-flex items-center gap-1"
                                 title="Reset Owner Password"
                               >
-                                Reset PW
+                                🔑 Reset PW
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActiveShopId(s.id);
+                                  setPortal('SHOP_OWNER');
+                                  setShopTab('DASHBOARD');
+                                  showToast(`👁️ Inspecting tenant portal: ${s.name}`);
+                                }}
+                                className="px-2.5 py-1 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-[11px] transition shadow-xs inline-flex items-center gap-1"
+                                title="Open Tenant Portal"
+                              >
+                                👁️ Open
                               </button>
                             </div>
                           </td>
