@@ -16,7 +16,54 @@ export type StaffRole = 'SHOP_OWNER' | 'MANAGER' | 'CASHIER' | 'INVENTORY_STAFF'
 export type AuthUser = PBAuthUser;
 
 export default function App() {
-  const [data, setData] = useState<any>(initialData);
+  const [data, setData] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('atollhub_persistent_state_v1') || localStorage.getItem('ATOLLHUB_PLATFORM_STATE_V1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.shops) && parsed.shops.length > 0) {
+          // Non-destructive state loading:
+          // Keep all saved shops, products, credit profiles, customers, orders
+          // Never overwrite or re-seed default shops if saved shops already exist in localStorage
+          // Only merge missing default schema fields onto existing records
+          const mergedShops = parsed.shops.map((s: any) => {
+            const def = (initialData.shops || []).find((d: any) => d.id === s.id);
+            return def ? { ...def, ...s } : s;
+          });
+
+          const mergedProducts = Array.isArray(parsed.products) && parsed.products.length > 0
+            ? parsed.products.map((p: any) => {
+                const def = (initialData.products || []).find((d: any) => d.id === p.id);
+                return def ? { ...def, ...p } : p;
+              })
+            : initialData.products;
+
+          return {
+            ...initialData,
+            ...parsed,
+            shops: mergedShops,
+            products: mergedProducts,
+            customers: parsed.customers || (initialData as any).customers || [],
+            creditAccounts: parsed.creditAccounts || (initialData as any).creditAccounts || [],
+            creditTransactions: parsed.creditTransactions || (initialData as any).creditTransactions || [],
+            creditPayments: parsed.creditPayments || (initialData as any).creditPayments || [],
+            auditLogs: parsed.auditLogs || (initialData as any).auditLogs || []
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load persistent state from localStorage:', e);
+    }
+    return initialData;
+  });
+
+  // Keep single permanent localStorage key: atollhub_persistent_state_v1
+  useEffect(() => {
+    try {
+      localStorage.setItem('atollhub_persistent_state_v1', JSON.stringify(data));
+      localStorage.setItem('ATOLLHUB_PLATFORM_STATE_V1', JSON.stringify(data));
+    } catch (e) {}
+  }, [data]);
   const [portal, setPortal] = useState<PortalType>('CUSTOMER');
   const [activeShopId, setActiveShopId] = useState<string>('shop-1');
   const [activeStaffRole, setActiveStaffRole] = useState<StaffRole>('SHOP_OWNER');
@@ -629,6 +676,67 @@ export default function App() {
 
     setEditShopModalOpen(false);
     showToast(`✅ Shop '${name}' details updated successfully!`);
+  };
+
+  const handleExportBackup = () => {
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      platform: 'AtollHub Commerce Platform',
+      version: '1.0',
+      data
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `atollhub_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('📥 Platform backup JSON exported successfully!');
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        const importedData = parsed.data || parsed.state || parsed;
+
+        if (!importedData.shops || !Array.isArray(importedData.shops)) {
+          showToast('❌ Invalid backup JSON: Missing shops collection.');
+          return;
+        }
+
+        setData((prev: any) => ({
+          ...prev,
+          ...importedData,
+          auditLogs: [
+            {
+              id: 'aud-' + Date.now(),
+              actorRole: 'MASTER_ADMIN',
+              actorName: currentUser?.name || 'Master Admin',
+              shopId: 'GLOBAL',
+              action: 'BACKUP_IMPORTED',
+              details: `Imported platform backup: Restored ${importedData.shops.length} shops and related dataset.`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            },
+            ...(importedData.auditLogs || prev.auditLogs || [])
+          ]
+        }));
+
+        showToast(`✅ Backup imported successfully! Restored ${importedData.shops.length} shops.`);
+      } catch (err: any) {
+        showToast(`❌ Error parsing backup JSON: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -1547,7 +1655,27 @@ export default function App() {
                 <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Platform Administration</span>
                 <h2 className="text-xl sm:text-2xl font-black">AtollHub Platform Master Admin</h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportBackup}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow flex items-center gap-1.5 transition"
+                  title="Export full JSON backup snapshot"
+                >
+                  📥 Export Backup (JSON)
+                </button>
+                <label
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-200 border border-indigo-500/30 font-bold text-xs shadow flex items-center gap-1.5 cursor-pointer transition"
+                  title="Import JSON backup snapshot"
+                >
+                  📤 Import Backup (JSON)
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={handleImportBackup}
+                  />
+                </label>
+                <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block"></div>
                 <button
                   onClick={() => setAdminTab('SHOPS')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${adminTab === 'SHOPS' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300'}`}
