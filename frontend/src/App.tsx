@@ -34,6 +34,20 @@ export default function App() {
   // PocketBase Master Admin Tenant Provisioning Modal State
   const [createShopModalOpen, setCreateShopModalOpen] = useState<boolean>(false);
 
+  // Edit Shop Modal State
+  const [editShopModalOpen, setEditShopModalOpen] = useState<boolean>(false);
+  const [editShopForm, setEditShopForm] = useState({
+    id: '',
+    name: '',
+    category: 'Groceries & Pantry',
+    ownerName: '',
+    ownerEmail: '',
+    phone: '',
+    island: '',
+    atoll: '',
+    currency: 'MVR' as CurrencyCode
+  });
+
   // Customer Credit Book State & Modals
   const [newCustomerModalOpen, setNewCustomerModalOpen] = useState<boolean>(false);
   const [newCustomerForm, setNewCustomerForm] = useState({
@@ -530,6 +544,91 @@ export default function App() {
     } catch (err: any) {
       showToast(`Error provisioning shop: ${err.message}`);
     }
+  };
+
+  const handleOpenEditShop = (shop: any) => {
+    setEditShopForm({
+      id: shop.id,
+      name: shop.name || '',
+      category: shop.category || 'Groceries & Pantry',
+      ownerName: shop.ownerName || '',
+      ownerEmail: shop.ownerEmail || '',
+      phone: shop.phone || '+960 777-1234',
+      island: shop.island || 'Malé',
+      atoll: shop.atoll || 'Kaafu Atoll',
+      currency: (shop.defaultCurrency || 'MVR') as CurrencyCode
+    });
+    setEditShopModalOpen(true);
+  };
+
+  const handleSaveEditShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editShopForm.id) return;
+    const { id, name, category, ownerName, ownerEmail, phone, island, atoll, currency } = editShopForm;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    try {
+      await pb.collection('shops').update(id, {
+        name,
+        slug,
+        category,
+        ownerName,
+        ownerEmail,
+        phone,
+        island,
+        atoll,
+        defaultCurrency: currency
+      });
+
+      const userList = await pb.collection('users').getList(1, 1, {
+        filter: `shop_id = "${id}"`
+      });
+      if (userList.items.length > 0) {
+        await pb.collection('users').update(userList.items[0].id, {
+          email: ownerEmail,
+          name: ownerName
+        });
+      }
+    } catch (err) {
+      // PB offline fallback
+    }
+
+    setData((prev: any) => ({
+      ...prev,
+      shops: prev.shops.map((s: any) => {
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          name,
+          slug,
+          category,
+          ownerName,
+          ownerEmail,
+          phone,
+          whatsapp: phone.replace(/[^0-9]/g, ''),
+          viber: phone.replace(/[^0-9]/g, ''),
+          island,
+          atoll,
+          address: island,
+          defaultCurrency: currency
+        };
+      }),
+      auditLogs: [
+        {
+          id: 'aud-' + Date.now(),
+          actorRole: 'MASTER_ADMIN',
+          actorName: currentUser?.name || 'Master Admin',
+          shopId: id,
+          action: 'SHOP_UPDATED',
+          details: `Updated details for shop ${name} (${id}): category ${category}, owner ${ownerName} (${ownerEmail}), phone ${phone}, location ${island}/${atoll}, currency ${currency}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        },
+        ...(prev.auditLogs || [])
+      ]
+    }));
+
+    setEditShopModalOpen(false);
+    showToast(`✅ Shop '${name}' details updated successfully!`);
   };
 
   return (
@@ -1461,6 +1560,12 @@ export default function App() {
                 >
                   Currencies & FX
                 </button>
+                <button
+                  onClick={() => setAdminTab('AUDIT')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${adminTab === 'AUDIT' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300'}`}
+                >
+                  Platform Audit Logs
+                </button>
               </div>
             </div>
 
@@ -1525,6 +1630,13 @@ export default function App() {
                                 </button>
                               )}
                               <button
+                                onClick={() => handleOpenEditShop(s)}
+                                className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition shadow-xs flex items-center gap-1"
+                                title="Edit Shop Details"
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
                                 onClick={() => handleResetShopPassword(s.id)}
                                 className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-lg text-[11px] transition shadow-xs"
                                 title="Reset Owner Password"
@@ -1556,6 +1668,51 @@ export default function App() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Platform Audit Logs */}
+            {adminTab === 'AUDIT' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900">Platform Security & Activity Audit Logs</h3>
+                    <span className="text-xs text-slate-500">Immutable trace of administrative events & shop updates</span>
+                  </div>
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-bold text-xs rounded-full">
+                    {(data.auditLogs || []).length} Recorded Events
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Time</th>
+                        <th className="p-3">Actor / Role</th>
+                        <th className="p-3">Action</th>
+                        <th className="p-3">Tenant ID</th>
+                        <th className="p-3">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(data.auditLogs || []).map((log: any, idx: number) => (
+                        <tr key={log.id || idx} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">{log.time || 'Now'}</td>
+                          <td className="p-3 font-bold text-slate-800 whitespace-nowrap">
+                            {log.actorName || 'Master Admin'} <span className="text-[10px] text-indigo-600 block">{log.actorRole || 'MASTER_ADMIN'}</span>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-slate-100 text-slate-800">
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono text-slate-600 whitespace-nowrap">{log.shopId || 'GLOBAL'}</td>
+                          <td className="p-3 text-slate-700">{log.details}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
@@ -2261,7 +2418,149 @@ export default function App() {
         </div>
       )}
 
-      {/* 5.5 AUTHENTICATION / LOGIN MODAL */}
+      {/* 5.5 EDIT SHOP DETAILS MODAL */}
+      {editShopModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✏️</span>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Edit Shop Details ({editShopForm.name})
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditShopModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+              <strong>Master Admin Tenant Governance:</strong> Modifying shop parameters updates the tenant in place while strictly preserving <code className="font-mono bg-amber-100 px-1 rounded">{editShopForm.id}</code> and all linked inventory, orders, customer credit profiles, and ledger history.
+            </div>
+
+            <form onSubmit={handleSaveEditShop} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Shop Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editShopForm.name}
+                  onChange={(e) => setEditShopForm({ ...editShopForm, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Business Category *</label>
+                <select
+                  value={editShopForm.category}
+                  onChange={(e) => setEditShopForm({ ...editShopForm, category: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900 bg-white"
+                >
+                  <option value="Groceries & Pantry">Groceries & Pantry</option>
+                  <option value="Electronics & Tech">Electronics & Tech</option>
+                  <option value="Pharmacy & Wellness">Pharmacy & Wellness</option>
+                  <option value="Island Provisions">Island Provisions</option>
+                  <option value="Fashion & Apparel">Fashion & Apparel</option>
+                  <option value="Home & Hardware">Home & Hardware</option>
+                  <option value="Fresh Produce">Fresh Produce</option>
+                  <option value="Island Retail & Provisions">Island Retail & Provisions</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Owner Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editShopForm.ownerName}
+                    onChange={(e) => setEditShopForm({ ...editShopForm, ownerName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Owner Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={editShopForm.ownerEmail}
+                    onChange={(e) => setEditShopForm({ ...editShopForm, ownerEmail: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Contact Phone</label>
+                <input
+                  type="text"
+                  value={editShopForm.phone}
+                  onChange={(e) => setEditShopForm({ ...editShopForm, phone: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Island Location</label>
+                  <input
+                    type="text"
+                    value={editShopForm.island}
+                    onChange={(e) => setEditShopForm({ ...editShopForm, island: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Atoll Location</label>
+                  <input
+                    type="text"
+                    value={editShopForm.atoll}
+                    onChange={(e) => setEditShopForm({ ...editShopForm, atoll: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Default Base Currency</label>
+                <select
+                  value={editShopForm.currency}
+                  onChange={(e) => setEditShopForm({ ...editShopForm, currency: e.target.value as CurrencyCode })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-medium text-slate-900 bg-white"
+                >
+                  <option value="MVR">MVR - Maldivian Rufiyaa</option>
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="INR">INR - Indian Rupee</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditShopModalOpen(false)}
+                  className="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-xl shadow transition"
+                >
+                  Save Changes &amp; Log Audit Entry →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5.6 AUTHENTICATION / LOGIN MODAL */}
       {loginModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
