@@ -2781,10 +2781,13 @@
                 <p class="text-xs text-slate-300">Stock is deducted immediately via FEFO when products are given on credit. Credit sales are tracked strictly separately from cash received.</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <button type="button" data-action="open-new-credit-tx-modal" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow">
+                <button type="button" data-action="open-new-customer-credit-profile-modal" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow flex items-center gap-1">
+                  + Add Customer Credit Profile
+                </button>
+                <button type="button" data-action="open-new-credit-tx-modal" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow flex items-center gap-1">
                   + Issue Products on Credit
                 </button>
-                <button type="button" data-action="open-credit-payment-modal" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow">
+                <button type="button" data-action="open-credit-payment-modal" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow flex items-center gap-1">
                   💵 Record Salary / Partial Payment
                 </button>
               </div>
@@ -2823,6 +2826,19 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                  ${shopCustomers.length === 0 ? `
+                    <tr>
+                      <td colspan="7" class="p-8 text-center text-slate-500">
+                        <div class="space-y-2 max-w-md mx-auto">
+                          <p class="font-bold text-sm text-slate-800 dark:text-slate-200">No credit customers yet for ${shop.name}</p>
+                          <p class="text-xs text-slate-500">Newly registered tenant shop? Click below to register island customers and track their monthly salary credit accounts.</p>
+                          <button type="button" data-action="open-new-customer-credit-profile-modal" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow inline-flex items-center gap-1 mt-1">
+                            + Add Customer Credit Profile
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ` : ''}
                   ${shopCustomers.map(c => `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td class="p-3">
@@ -4861,6 +4877,98 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
         return;
       }
 
+      if (action === 'open-new-customer-credit-profile-modal') {
+        const shop = state.shops.find(s => s.id === state.activeShopId);
+        openModal(`👤 Add Customer Credit Profile (${shop.name})`, `
+          <div class="space-y-3 text-xs">
+            <div class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200">
+              Register an island customer for monthly salary credit book purchases with credit limit enforcement and statement tracking.
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Full Name *</label>
+                <input type="text" id="nc-name" required placeholder="e.g. Mariyam Shiuna" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">ID / Passport Reference *</label>
+                <input type="text" id="nc-idref" required placeholder="e.g. A298144" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Phone Number *</label>
+                <input type="text" id="nc-phone" required placeholder="e.g. +960 778-9900" value="+960 7" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Employer / Department *</label>
+                <input type="text" id="nc-employer" required placeholder="e.g. STELCO / MTCC / Council" value="Government Employee" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Monthly Credit Limit (${shop.defaultCurrency}) *</label>
+                <input type="number" id="nc-limit" required value="5000" min="500" step="100" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Expected Salary Day *</label>
+                <input type="text" id="nc-salary-day" required value="28th of every month" placeholder="e.g. 28th of every month" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+            <div class="pt-2 flex gap-2">
+              <button type="button" data-action="close-modal" class="w-1/3 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-bold rounded-xl">
+                Cancel
+              </button>
+              <button type="button" data-action="confirm-new-customer-credit-profile" class="w-2/3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold shadow transition">
+                Save Customer Credit Profile →
+              </button>
+            </div>
+          </div>
+        `);
+        return;
+      }
+
+      if (action === 'confirm-new-customer-credit-profile') {
+        const shop = state.shops.find(s => s.id === state.activeShopId);
+        const name = (document.getElementById('nc-name')?.value || '').trim();
+        const idRef = (document.getElementById('nc-idref')?.value || '').trim();
+        const phone = (document.getElementById('nc-phone')?.value || '').trim();
+        const employer = (document.getElementById('nc-employer')?.value || '').trim();
+        const limit = Number(document.getElementById('nc-limit')?.value || 5000);
+        const salaryDay = (document.getElementById('nc-salary-day')?.value || '28th of every month').trim();
+
+        if (!name || !idRef || !phone) {
+          showToast('Please fill in Full Name, ID Reference, and Phone Number.', 'error');
+          return;
+        }
+
+        const newId = 'cust-' + (state.customers.length + 1) + '-' + Math.floor(100 + Math.random() * 900);
+        const newCustomer = {
+          id: newId,
+          shopId: state.activeShopId,
+          name,
+          idRef,
+          phone,
+          whatsapp: phone.replace(/[^0-9]/g, ''),
+          viber: phone.replace(/[^0-9]/g, ''),
+          email: name.toLowerCase().replace(/[^a-z0-9]/g, '') + '@customer.mv',
+          address: shop.island || 'Malé',
+          island: shop.island || 'Malé',
+          employment: employer || 'Private Sector',
+          salaryDate: salaryDay,
+          creditLimit: round2(limit),
+          totalCreditBorrowed: 0,
+          totalCreditPaid: 0,
+          creditBalance: 0
+        };
+
+        state.customers.push(newCustomer);
+        closeModal();
+        saveState();
+        renderApp();
+        showToast(`Registered customer credit profile for ${name}!`, 'success');
+        return;
+      }
+
       if (action === 'open-new-credit-tx-modal') {
         const shop = state.shops.find(s => s.id === state.activeShopId);
         const custs = state.customers.filter(c => c.shopId === shop.id);
@@ -4871,17 +4979,35 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
               <strong>Accounting &amp; Inventory Rule:</strong> Issuing products on credit immediately deducts stock via FEFO, increases the customer's outstanding credit balance, and records a Credit Sale (never counted as Cash Received until repaid).
             </div>
             <div>
-              <label class="block font-bold mb-1">Select Customer Credit Profile *</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold">Select Customer Credit Profile *</label>
+                <button type="button" data-action="open-new-customer-credit-profile-modal" class="text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-[11px] flex items-center gap-1">
+                  + New Customer
+                </button>
+              </div>
               <select id="cr-cust-id" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800">
-                ${custs.map(c => `<option value="${c.id}">${c.name} (Current Balance: ${formatMoney(c.creditBalance, shop.defaultCurrency)} / Limit: ${formatMoney(c.creditLimit, shop.defaultCurrency)})</option>`).join('')}
+                ${custs.length === 0 ? '<option value="" disabled selected>No credit customers yet — click + Add Customer Credit Profile</option>' : custs.map(c => `<option value="${c.id}">${c.name} (Current Balance: ${formatMoney(c.creditBalance, shop.defaultCurrency)} / Limit: ${formatMoney(c.creditLimit, shop.defaultCurrency)})</option>`).join('')}
               </select>
             </div>
+            ${custs.length === 0 ? `
+              <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200">
+                ⚠️ <strong>No credit customers registered for this shop yet.</strong>
+                <button type="button" data-action="open-new-customer-credit-profile-modal" class="underline font-bold ml-1 hover:text-indigo-600">
+                  Click + Add Customer Credit Profile to create one now.
+                </button>
+              </div>
+            ` : ''}
             <div>
               <label class="block font-bold mb-1">Select Product (Valid Non-Expired Stock) *</label>
               <select id="cr-prod-id" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800">
-                ${prods.map(p => `<option value="${p.id}">${p.name} — ${formatMoney(p.discountedPrice || p.sellingPrice, shop.defaultCurrency)} (Avail: ${p.availableQty})</option>`).join('')}
+                ${prods.length === 0 ? '<option value="" disabled selected>No non-expired products available in inventory</option>' : prods.map(p => `<option value="${p.id}">${p.name} — ${formatMoney(p.discountedPrice || p.sellingPrice, shop.defaultCurrency)} (Avail: ${p.availableQty})</option>`).join('')}
               </select>
             </div>
+            ${prods.length === 0 ? `
+              <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200">
+                ⚠️ <strong>No non-expired products available in inventory for this shop.</strong>
+              </div>
+            ` : ''}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><label class="block font-bold mb-1">Quantity *</label><input type="number" id="cr-qty" value="2" min="1" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800" /></div>
               <div><label class="block font-bold mb-1">Expected Salary Payment Date *</label><input type="date" id="cr-exp-date" value="2026-11-30" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800" /></div>
@@ -4898,8 +5024,16 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
 
       if (action === 'confirm-new-credit-tx') {
         const shop = state.shops.find(s => s.id === state.activeShopId);
-        const cid = document.getElementById('cr-cust-id').value;
-        const pid = document.getElementById('cr-prod-id').value;
+        const cid = document.getElementById('cr-cust-id')?.value;
+        const pid = document.getElementById('cr-prod-id')?.value;
+        if (!cid) {
+          showToast('Please select or create a valid customer credit profile.', 'error');
+          return;
+        }
+        if (!pid) {
+          showToast('Please select a valid non-expired product.', 'error');
+          return;
+        }
         const qty = Number(document.getElementById('cr-qty').value || 1);
         const expDate = document.getElementById('cr-exp-date').value;
         const dueMonth = document.getElementById('cr-month').value;
@@ -4954,11 +5088,21 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
         openModal(`💵 Record Customer Credit Repayment (${shop.name})`, `
           <div class="space-y-3 text-xs">
             <div>
-              <label class="block font-bold mb-1">Select Customer *</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold">Select Customer *</label>
+                <button type="button" data-action="open-new-customer-credit-profile-modal" class="text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-[11px] flex items-center gap-1">
+                  + New Customer
+                </button>
+              </div>
               <select id="cp-cust-id" class="w-full rounded-lg border px-3 py-2 bg-white dark:bg-slate-800">
-                ${custs.map(c => `<option value="${c.id}">${c.name} — Current Outstanding Balance: ${formatMoney(c.creditBalance, shop.defaultCurrency)}</option>`).join('')}
+                ${custs.length === 0 ? '<option value="" disabled selected>No credit customers yet — click + Add Customer Credit Profile</option>' : custs.map(c => `<option value="${c.id}">${c.name} — Current Outstanding Balance: ${formatMoney(c.creditBalance, shop.defaultCurrency)}</option>`).join('')}
               </select>
             </div>
+            ${custs.length === 0 ? `
+              <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200">
+                ⚠️ <strong>No credit customers registered for this shop yet.</strong>
+              </div>
+            ` : ''}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block font-bold mb-1">Payment Amount (${shop.defaultCurrency}) *</label>
