@@ -1215,13 +1215,43 @@
     if (pb) pb.autoCancellation(false);
     window.pb = pb;
 
+    const STORAGE_KEY = 'atollhub_persistent_state_v1';
+    const LEGACY_STORAGE_KEY = 'ATOLLHUB_PLATFORM_STATE_V1';
+
     let state = createInitialState();
     try {
-      const saved = localStorage.getItem('ATOLLHUB_PLATFORM_STATE_V1');
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.shops && parsed.products) {
-          state = Object.assign(createInitialState(), parsed);
+        if (parsed && Array.isArray(parsed.shops) && parsed.shops.length > 0) {
+          const defaults = createInitialState();
+          // Non-destructive state loading:
+          // Never overwrite or re-seed default shops if saved shops already exist in localStorage
+          // Only merge missing default fields onto existing records
+          const mergedShops = parsed.shops.map(s => {
+            const def = (defaults.shops || []).find(d => d.id === s.id);
+            return def ? Object.assign({}, def, s) : s;
+          });
+
+          const mergedProducts = Array.isArray(parsed.products) && parsed.products.length > 0
+            ? parsed.products.map(p => {
+                const def = (defaults.products || []).find(d => d.id === p.id);
+                return def ? Object.assign({}, def, p) : p;
+              })
+            : defaults.products;
+
+          state = Object.assign(defaults, parsed);
+          state.shops = mergedShops;
+          state.products = mergedProducts;
+          if (Array.isArray(parsed.customers)) state.customers = parsed.customers;
+          if (Array.isArray(parsed.creditAccounts)) state.creditAccounts = parsed.creditAccounts;
+          if (Array.isArray(parsed.creditTransactions)) state.creditTransactions = parsed.creditTransactions;
+          if (Array.isArray(parsed.creditPayments)) state.creditPayments = parsed.creditPayments;
+          if (Array.isArray(parsed.inventoryBatches)) state.inventoryBatches = parsed.inventoryBatches;
+          if (Array.isArray(parsed.orders)) state.orders = parsed.orders;
+          if (Array.isArray(parsed.sales)) state.sales = parsed.sales;
+          if (Array.isArray(parsed.currencies)) state.currencies = parsed.currencies;
+          if (Array.isArray(parsed.auditLogs)) state.auditLogs = parsed.auditLogs;
         }
       }
     } catch (e) {
@@ -1230,7 +1260,8 @@
 
     function saveState() {
       try {
-        localStorage.setItem('ATOLLHUB_PLATFORM_STATE_V1', JSON.stringify(state));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state));
       } catch (e) {}
     }
 
@@ -3297,6 +3328,13 @@
               <p class="text-xs text-slate-300">Sole authority to activate new shop accounts, suspend/reactivate tenants, manage global currencies, and audit platform operations.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+              <button type="button" data-action="admin-export-backup" class="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow inline-flex items-center gap-1.5 transition" title="Export full JSON backup snapshot">
+                📥 Export Backup (JSON)
+              </button>
+              <label class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-200 border border-indigo-500/30 font-extrabold text-xs shadow inline-flex items-center gap-1.5 cursor-pointer transition" title="Import JSON backup snapshot">
+                📤 Import Backup (JSON)
+                <input type="file" id="admin-import-backup-input" accept=".json,application/json" class="hidden" data-action="admin-import-backup-file" />
+              </label>
               <button type="button" data-action="open-admin-create-shop-modal" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow">
                 + Create Shop Owner Account Directly
               </button>
@@ -5572,6 +5610,47 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
         return;
       }
 
+      if (action === 'admin-export-backup') {
+        const backupData = {
+          timestamp: new Date().toISOString(),
+          platform: 'AtollHub Commerce Platform',
+          version: '1.0',
+          state: {
+            shops: state.shops,
+            products: state.products,
+            inventoryBatches: state.inventoryBatches,
+            customers: state.customers,
+            creditAccounts: state.creditAccounts,
+            creditTransactions: state.creditTransactions,
+            creditPayments: state.creditPayments,
+            orders: state.orders,
+            sales: state.sales,
+            currencies: state.currencies,
+            auditLogs: state.auditLogs
+          }
+        };
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `atollhub_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        addAuditLog(
+          'MASTER_ADMIN',
+          state.currentUser?.name || 'Master Admin',
+          'GLOBAL',
+          'BACKUP_EXPORTED',
+          `Exported full platform JSON backup containing ${state.shops.length} shops and ${state.products.length} products.`
+        );
+        saveState();
+        showToast('📥 Platform backup JSON exported successfully!', 'success');
+        return;
+      }
+
       if (action === 'open-admin-create-shop-modal') {
         openModal('🛡️ Master Admin: Create & Activate Shop Account Directly', `
           <div class="space-y-3 text-xs">
@@ -5643,6 +5722,51 @@ Premium Jasmine Rice 5kg,MFM-CSV-102,Groceries & Pantry,58.00,79.00,45,B-CSV-270
     // Change listeners for selects & search inputs
     document.addEventListener('change', (e) => {
       const t = e.target;
+      if (t.id === 'admin-import-backup-input' || t.getAttribute('data-action') === 'admin-import-backup-file') {
+        const file = t.files && t.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const text = event.target.result;
+            const parsed = JSON.parse(text);
+            const imported = parsed.state || parsed.data || parsed;
+            if (!imported.shops || !Array.isArray(imported.shops)) {
+              showToast('❌ Invalid backup JSON: Missing shops collection.', 'error');
+              return;
+            }
+
+            // Non-destructive restore: update in place without losing existing records
+            state.shops = imported.shops;
+            if (Array.isArray(imported.products)) state.products = imported.products;
+            if (Array.isArray(imported.inventoryBatches)) state.inventoryBatches = imported.inventoryBatches;
+            if (Array.isArray(imported.customers)) state.customers = imported.customers;
+            if (Array.isArray(imported.creditAccounts)) state.creditAccounts = imported.creditAccounts;
+            if (Array.isArray(imported.creditTransactions)) state.creditTransactions = imported.creditTransactions;
+            if (Array.isArray(imported.creditPayments)) state.creditPayments = imported.creditPayments;
+            if (Array.isArray(imported.orders)) state.orders = imported.orders;
+            if (Array.isArray(imported.sales)) state.sales = imported.sales;
+            if (Array.isArray(imported.currencies)) state.currencies = imported.currencies;
+
+            addAuditLog(
+              'MASTER_ADMIN',
+              state.currentUser?.name || 'Master Admin',
+              'GLOBAL',
+              'BACKUP_IMPORTED',
+              `Imported platform backup JSON: Restored ${imported.shops.length} shops and related dataset.`
+            );
+
+            saveState();
+            renderApp();
+            showToast(`✅ Restored ${imported.shops.length} shops & related records from backup!`, 'success');
+          } catch (err) {
+            showToast(`❌ Error reading backup file: ${err.message}`, 'error');
+          }
+        };
+        reader.readAsText(file);
+        t.value = '';
+        return;
+      }
       if (t.id === 'active-shop-select') {
         state.activeShopId = t.value;
         state.posCart = [];
